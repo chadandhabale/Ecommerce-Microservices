@@ -1,0 +1,119 @@
+package com.example.demo.ServiceImpl;
+
+import java.util.Map;
+
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import com.example.demo.Entity.Payment;
+import com.example.demo.Entity.PaymentStatus;
+import com.example.demo.Repository.PaymentRepository;
+import com.example.demo.Service.EmailService;
+import com.example.demo.Service.PaymentService;
+import com.razorpay.Order;
+import com.razorpay.RazorpayClient;
+import com.razorpay.Utils;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class PaymentServiceImpl implements PaymentService {  // ✅ must implement interface
+
+    private final PaymentRepository paymentRepository;
+    private final EmailService emailService;
+
+    @Value("${razorpay.key.id}")
+    private String razorpayKeyId;
+
+    @Value("${razorpay.key.secret}")
+    private String razorpayKeySecret;
+
+    @Override
+    public Payment createPaymentOrder(Map<String, Object> data) {   // ✅ must match interface
+        try {
+            log.info("🪙 Creating Razorpay order for data: {}", data);
+
+            int amount = ((Number) data.get("amount")).intValue() * 100;
+
+            RazorpayClient client = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
+
+            JSONObject orderRequest = new JSONObject();
+            orderRequest.put("amount", amount);
+            orderRequest.put("currency", "INR");
+            orderRequest.put("receipt", "txn_" + System.currentTimeMillis());
+            orderRequest.put("payment_capture", 1);
+
+            Order order = client.orders.create(orderRequest);
+
+            Payment payment = Payment.builder()
+                    .razorpayOrderId(order.get("id"))
+                    .amount(((Number) data.get("amount")).doubleValue())
+                    .currency("INR")
+                    .status(PaymentStatus.PENDING)
+                    .userId(((Number) data.get("userId")).longValue())
+                    .orderId(((Number) data.get("orderId")).longValue())
+                    .build();
+
+            return paymentRepository.save(payment);
+
+        } catch (Exception e) {
+            log.error("❌ Failed to create Razorpay order: {}", e.getMessage());
+            throw new RuntimeException("Payment creation failed", e);
+        }
+    }
+
+    @Override
+    public boolean verifyPaymentSignature(Map<String, String> paymentDetails) {
+        try {
+            String orderId = paymentDetails.get("razorpay_order_id");
+            String paymentId = paymentDetails.get("razorpay_payment_id");
+            String signature = paymentDetails.get("razorpay_signature");
+
+            JSONObject attributes = new JSONObject();
+            attributes.put("razorpay_order_id", orderId);
+            attributes.put("razorpay_payment_id", paymentId);
+            attributes.put("razorpay_signature", signature);
+
+            boolean isValid = Utils.verifyPaymentSignature(attributes, razorpayKeySecret);
+            return isValid;
+
+        } catch (Exception e) {
+            log.error("❌ Signature verification failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
+
+    @Override
+    public Payment updatePaymentStatus(String razorpayOrderId, String status) {
+        Payment payment = paymentRepository.findByRazorpayOrderId(razorpayOrderId);
+        if (payment == null) {
+            throw new RuntimeException("Payment not found with Razorpay Order ID: " + razorpayOrderId);
+        }
+
+        payment.setStatus(PaymentStatus.valueOf(status.toUpperCase()));
+        Payment updatedPayment = paymentRepository.save(payment);
+
+        // ✅ Send email when success
+        if (updatedPayment.getStatus() == PaymentStatus.SUCCESS) {
+            String to = "customer@example.com";
+            String subject = "Payment Successful - Order #" + updatedPayment.getOrderId();
+            String body = String.format(
+                    "Dear Customer,\n\nYour payment of ₹%.2f for Order #%d was successful!\n\nThank you for shopping with us.\n\nBest Regards,\nEcomms Team",
+                    updatedPayment.getAmount(), updatedPayment.getOrderId()
+            );
+            emailService.sendEmail(to, subject, body);
+        }
+
+        return updatedPayment;
+    }
+
+    @Override
+    public Payment getPaymentByOrderId(String razorpayOrderId) {
+        return paymentRepository.findByRazorpayOrderId(razorpayOrderId);
+    }
+}

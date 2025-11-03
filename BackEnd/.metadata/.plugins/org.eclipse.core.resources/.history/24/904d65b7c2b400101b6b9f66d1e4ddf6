@@ -1,0 +1,50 @@
+package com.example.paymentGateway.Controller;
+
+import java.util.Map;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import com.example.paymentGateway.Entity.Payment;
+import com.example.paymentGateway.Service.PaymentService;
+
+import lombok.RequiredArgsConstructor;
+
+@RestController
+@RequestMapping("/api/payments")
+@RequiredArgsConstructor
+public class PaymentController {
+
+    private final PaymentService paymentService;
+
+    // ✅ 1. Create Payment Order
+    @PostMapping("/create")
+    public ResponseEntity<Payment> createPayment(@RequestBody Map<String, Object> data) {
+        Payment payment = paymentService.createPaymentOrder(data);
+        return ResponseEntity.ok(payment);
+    }
+
+    // ✅ 2. Verify Payment Signature
+    @PostMapping("/verify")
+    public ResponseEntity<Boolean> verifyPaymentSignature(@RequestBody Map<String, String> paymentDetails) {
+        boolean isValid = paymentService.verifyPaymentSignature(paymentDetails);
+        return ResponseEntity.ok(isValid);
+    }
+
+    // ✅ 3. Update Payment Status
+    @PutMapping("/update-status/{razorpayOrderId}")
+    public ResponseEntity<Payment> updatePaymentStatus(
+            @PathVariable String razorpayOrderId,
+            @RequestParam String status,
+            @RequestParam(required = false) String email) {
+
+        Payment updatedPayment = paymentService.updatePaymentStatus(razorpayOrderId, status, email);
+        return ResponseEntity.ok(updatedPayment);
+    }
+
+    // ✅ 4. Get Payment by Order ID
+    @GetMapping("/order/{razorpayOrderId}")
+    public ResponseEntity<Payment> getPaymentByOrderId(@PathVariable String razorpayOrderId) {
+        Payment payment = paymentService.getPaymentByOrderId(razorpayOrderId);
+        return ResponseEntity.ok(payment);
+    }
+}

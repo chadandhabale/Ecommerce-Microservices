@@ -1,0 +1,14 @@
+package com.chandu.DTO;
+
+import lombok.Data;
+
+@Data
+public class PaymentRequest {
+    private Long orderId;
+    private Double amount;
+    private String currency = "INR"; // Default currency
+    private String receipt;
+    private String paymentMethod; // CARD, UPI, NETBANKING, etc.
+    private String email;
+    private String contact;
+}

@@ -1,0 +1,18 @@
+package com.example.ecoms.DTO;
+
+import lombok.*;
+import java.math.BigDecimal;
+import java.util.Map;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class RequestOrderDTO {
+
+	// Map<ProductId, Quantity>
+	private Map<Long, Integer> productQuantities;
+
+	// Total amount for the order (sent from frontend or calculated on backend)
+	private BigDecimal totalAmount;
+}

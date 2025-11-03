@@ -1,0 +1,35 @@
+package com.chandu.Service;
+
+import java.util.List;
+
+import com.chandu.Entity.User;
+
+/**
+ * Service interface for managing users and authentication.
+ */
+public interface UserService {
+
+    /**
+     * Registers a new user in the system.
+     *
+     * @param user the user details to register
+     * @return the newly registered user
+     */
+    User registerUser(User user);
+
+    /**
+     * Authenticates a user based on email and password.
+     *
+     * @param email the user's email address
+     * @param password the user's password
+     * @return the authenticated user if credentials are valid, otherwise null
+     */
+    User loginUser(String email, String password);
+
+    /**
+     * Retrieves all users from the system.
+     *
+     * @return a list of all registered users
+     */
+    List<User> getAllUsers();
+}

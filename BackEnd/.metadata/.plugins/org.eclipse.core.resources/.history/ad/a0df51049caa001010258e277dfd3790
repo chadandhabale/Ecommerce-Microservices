@@ -1,0 +1,70 @@
+package com.chandu.Config;
+
+import com.chandu.Security.JwtAuthenticationFilter;
+import com.chandu.Service.AppUserDetailsService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+@Configuration
+@RequiredArgsConstructor
+public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtFilter;
+    private final AppUserDetailsService userDetailsService;
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        // PUBLIC ENDPOINTS
+                        .requestMatchers("/auth/**").permitAll()
+                        
+                        // PRODUCT ENDPOINTS
+                        .requestMatchers("/products", "/products/{id}", "/products/search", "/products/category/**").permitAll()
+                        .requestMatchers("/products/**").hasRole("ADMIN")
+                        
+                        // ORDER ENDPOINTS (UPDATED WITH /api prefix)
+                        .requestMatchers("/api/orders/place/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/api/orders/user/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/api/orders/**").hasRole("ADMIN")
+                        
+                        // PAYMENT ENDPOINTS (UPDATED WITH /api prefix)
+                        .requestMatchers("/api/payments/**").hasAnyRole("USER", "ADMIN")
+                        
+                        // USER MANAGEMENT ENDPOINTS
+                        .requestMatchers("/users/register").permitAll()
+                        .requestMatchers("/users/**").hasRole("ADMIN")
+                        
+                        // EMAIL ENDPOINTS (UPDATED WITH /api prefix)
+                        .requestMatchers("/api/email/**").hasRole("ADMIN")
+                        
+                        .anyRequest().authenticated()
+                )
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+
+        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+        return http.build();
+    }
+
+    // ✅ Password encoder bean
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    // ✅ AuthenticationManager bean for login authentication
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+}

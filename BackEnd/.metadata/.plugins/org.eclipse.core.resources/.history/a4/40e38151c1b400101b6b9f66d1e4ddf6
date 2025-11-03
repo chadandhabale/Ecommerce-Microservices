@@ -1,0 +1,12 @@
+package com.example.demo.Service;
+
+import java.util.Map;
+
+import com.example.paymentGateway.Entity.Payment;
+
+public interface PaymentService {
+    Payment createPaymentOrder(Map<String, Object> data);
+    boolean verifyPaymentSignature(Map<String, String> paymentDetails);
+    Payment updatePaymentStatus(String razorpayOrderId, String status, String email);
+    Payment getPaymentByOrderId(String razorpayOrderId);
+}

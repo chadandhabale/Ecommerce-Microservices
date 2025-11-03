@@ -1,0 +1,26 @@
+package com.example.paymentGateway.Service;
+
+import java.util.List;
+
+import com.example.paymentGateway.Entity.Product;
+
+/**
+ * Service interface for managing {@link Product} entities.
+ * Provides methods for CRUD operations, filtering, and search.
+ */
+public interface ProductService {
+
+    List<Product> getAllProducts();
+
+    Product findProductById(Long productId);
+
+    Product addProduct(Product product);
+
+    Product updateProduct(Long productId, Product updatedProduct);
+
+    void deleteProduct(Long productId);
+
+    List<Product> searchProducts(String keyword);
+
+    List<Product> getProductsByCategory(String category);
+}

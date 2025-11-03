@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | Shoplane</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+  <!-- Navigation Bar -->
+  <nav class="navbar navbar-expand-lg navbar-dark shadow-sm">
+    <div class="container">
+      <a class="navbar-brand fw-bold" href="index.html">SHOPLANE</a>
+      <div class="navbar-nav ms-auto">
+        <a class="nav-link" href="register.html">
+          <i class="fas fa-user-plus me-1"></i>Register
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="container-fluid">
+    <div class="row justify-content-center align-items-center min-vh-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+      <div class="col-md-6 col-lg-4">
+        <div class="auth-container">
+          <!-- Header -->
+          <div class="text-center mb-4">
+            <i class="fas fa-sign-in-alt fa-3x text-primary mb-3"></i>
+            <h2 class="fw-bold">Welcome Back</h2>
+            <p class="text-muted">Sign in to your Shoplane account</p>
+          </div>
+
+          <!-- Login Form -->
+          <form id="loginForm">
+            <div class="mb-3">
+              <label for="loginEmail" class="form-label">Email Address</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                <input type="email" id="loginEmail" class="form-control" placeholder="Enter your email" required>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label for="loginPassword" class="form-label">Password</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                <input type="password" id="loginPassword" class="form-control" placeholder="Enter your password" required>
+                <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('loginPassword')">
+                  <i class="fas fa-eye"></i>
+                </button>
+              </div>
+              <div class="form-text">
+                <a href="#" class="text-decoration-none" onclick="showForgotPassword()">Forgot password?</a>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-3 fw-bold">
+              <i class="fas fa-sign-in-alt me-2"></i>Sign In
+            </button>
+
+            <!-- Loading Spinner -->
+            <div id="loadingSpinner" class="text-center mt-3" style="display: none;">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <p class="mt-2 text-muted">Signing you in...</p>
+            </div>
+          </form>
+
+          <!-- Success Message -->
+          <div id="successMessage" class="alert alert-success mt-3" style="display: none;">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong>Success!</strong> Login successful.
+          </div>
+
+          <!-- Error Message -->
+          <div id="errorMessage" class="alert alert-danger mt-3" style="display: none;">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <span id="errorText">Invalid email or password.</span>
+          </div>
+
+          <!-- Demo Accounts -->
+          <div class="card mt-4">
+            <div class="card-body">
+              <h6 class="card-title">
+                <i class="fas fa-lightbulb me-2 text-warning"></i>Demo Accounts
+              </h6>
+              <div class="small">
+                <div><strong>Email:</strong> demo@shoplane.com</div>
+                <div><strong>Password:</strong> password123</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Register Redirect -->
+          <div class="text-center mt-4">
+            <p class="text-muted">
+              Don't have an account? 
+              <a href="register.html" class="text-primary fw-bold text-decoration-none">
+                Create One Here
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "http://localhost:333";
+
+    // Toggle password visibility
+    function togglePassword(fieldId) {
+      const passwordField = document.getElementById(fieldId);
+      const toggleIcon = passwordField.nextElementSibling.querySelector('i');
+      
+      if (passwordField.type === "password") {
+        passwordField.type = "text";
+        toggleIcon.classList.remove('fa-eye');
+        toggleIcon.classList.add('fa-eye-slash');
+      } else {
+        passwordField.type = "password";
+        toggleIcon.classList.remove('fa-eye-slash');
+        toggleIcon.classList.add('fa-eye');
+      }
+    }
+
+    // Forgot password placeholder
+    function showForgotPassword() {
+      alert('Password reset feature coming soon! For now, please use the demo account.');
+      document.getElementById('loginEmail').value = 'demo@shoplane.com';
+      document.getElementById('loginPassword').value = 'password123';
+    }
+
+    // Handle form submission
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById("loginEmail").value.trim();
+      const password = document.getElementById("loginPassword").value.trim();
+
+      // Show loading state
+      showLoading(true);
+      hideMessages();
+
+      try {
+        const credentials = {
+          email: email,
+          password: password
+        };
+
+        const response = await fetch(`${API_BASE}/api/users/login`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(credentials)
+        });
+
+        if (response.ok) {
+          const user = await response.json();
+          showSuccess();
+          
+          // Store user info
+          localStorage.setItem("userEmail", user.email);
+          localStorage.setItem("userName", user.name || user.email.split('@')[0]);
+          
+          // Redirect to home after success
+          setTimeout(() => {
+            window.location.href = "index.html";
+          }, 1500);
+          
+        } else {
+          showError("Invalid email or password. Please try again.");
+        }
+      } catch (error) {
+        console.error("Login error:", error);
+        showError("Network error. Please check your connection and try again.");
+      } finally {
+        showLoading(false);
+      }
+    });
+
+    // UI Helper functions
+    function showLoading(show) {
+      document.getElementById("loadingSpinner").style.display = show ? "block" : "none";
+      document.querySelector('button[type="submit"]').disabled = show;
+    }
+
+    function showSuccess() {
+      document.getElementById("successMessage").style.display = "block";
+      document.getElementById("errorMessage").style.display = "none";
+    }
+
+    function showError(message) {
+      document.getElementById("errorText").textContent = message;
+      document.getElementById("errorMessage").style.display = "block";
+      document.getElementById("successMessage").style.display = "none";
+    }
+
+    function hideMessages() {
+      document.getElementById("successMessage").style.display = "none";
+      document.getElementById("errorMessage").style.display = "none";
+    }
+
+    // Check for registration success message
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('message') === 'registered') {
+      showSuccess();
+      document.getElementById('successMessage').innerHTML = 
+        '<i class="fas fa-check-circle me-2"></i><strong>Success!</strong> Account created! Please login.';
+    }
+
+    // Auto-fill demo account for testing
+    document.addEventListener('DOMContentLoaded', function() {
+      // Auto-fill demo credentials for easy testing
+      document.getElementById('loginEmail').value = 'demo@shoplane.com';
+      document.getElementById('loginPassword').value = 'password123';
+    });
+  </script>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

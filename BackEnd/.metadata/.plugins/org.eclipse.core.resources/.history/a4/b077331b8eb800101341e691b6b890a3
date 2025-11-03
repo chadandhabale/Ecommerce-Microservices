@@ -1,0 +1,27 @@
+package com.example.ecoms.Client;
+
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.*;
+
+import com.example.ecoms.DTO.PaymentRequest;
+import com.example.ecoms.DTO.PaymentResponse;
+
+@FeignClient(
+    name = "PaymentService", // Must match Eureka service name exactly
+    configuration = com.example.ecoms.Config.FeignConfig.class,
+    path = "/api/payments" // Base path for all endpoints
+)
+public interface PaymentClient {
+    
+    @PostMapping("/create")
+    PaymentResponse createPayment(@RequestBody PaymentRequest paymentRequest);
+
+    @PutMapping("/update-status/{razorpayOrderId}")
+    PaymentResponse updatePaymentStatus(
+        @PathVariable("razorpayOrderId") String razorpayOrderId,
+        @RequestParam("status") String status
+    );
+    
+    @PostMapping("/verify")
+    Object verifyPayment(@RequestBody Object verificationDTO);
+}

@@ -1,0 +1,119 @@
+package com.chandu.ServiceImpl;
+
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.stereotype.Service;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
+
+import com.chandu.Entity.Orders;
+import com.chandu.Service.EmailService;
+
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class EmailServiceImpl implements EmailService {
+
+	private final JavaMailSender mailSender;
+	private final TemplateEngine templateEngine;
+
+	@Override
+	public void sendOrderConfirmationEmail(String toEmail, Orders order) {
+		try {
+			Context context = new Context();
+			context.setVariable("order", order);
+			context.setVariable("user", order.getUser());
+			context.setVariable("orderItems", order.getOrderItems());
+			context.setVariable("totalAmount", order.getTotalAmount());
+
+			String subject = "Order Confirmation - Order #" + order.getId();
+			String htmlContent = templateEngine.process("emails/order-confirmation", context);
+
+			sendEmail(toEmail, subject, htmlContent);
+			log.info("✅ Order confirmation email sent to: {}", toEmail);
+		} catch (Exception e) {
+			log.error("❌ Failed to send order confirmation email to: {}", toEmail, e);
+		}
+	}
+
+	@Override
+	public void sendPaymentSuccessEmail(String toEmail, Orders order) {
+		try {
+			Context context = new Context();
+			context.setVariable("order", order);
+			context.setVariable("user", order.getUser());
+			context.setVariable("orderItems", order.getOrderItems());
+			context.setVariable("totalAmount", order.getTotalAmount());
+
+			String subject = "Payment Successful - Order #" + order.getId();
+			String htmlContent = templateEngine.process("emails/payment-success", context);
+
+			sendEmail(toEmail, subject, htmlContent);
+			log.info("✅ Payment success email sent to: {}", toEmail);
+		} catch (Exception e) {
+			log.error("❌ Failed to send payment success email to: {}", toEmail, e);
+		}
+	}
+
+	@Override
+	public void sendShippingUpdateEmail(String toEmail, Orders order) {
+		try {
+			Context context = new Context();
+			context.setVariable("order", order);
+			context.setVariable("user", order.getUser());
+			context.setVariable("status", order.getStatus().name());
+
+			String subject = "Shipping Update - Order #" + order.getId();
+			String htmlContent = templateEngine.process("emails/shipping-update", context);
+
+			sendEmail(toEmail, subject, htmlContent);
+			log.info("✅ Shipping update email sent to: {}", toEmail);
+		} catch (Exception e) {
+			log.error("❌ Failed to send shipping update email to: {}", toEmail, e);
+		}
+	}
+
+	@Override
+	public void sendPasswordResetEmail(String toEmail, String resetToken) {
+		try {
+			Context context = new Context();
+			context.setVariable("resetToken", resetToken);
+			context.setVariable("resetLink", "http://localhost:3000/reset-password?token=" + resetToken);
+
+			String subject = "Password Reset Request";
+			String htmlContent = templateEngine.process("emails/password-reset", context);
+
+			sendEmail(toEmail, subject, htmlContent);
+			log.info("✅ Password reset email sent to: {}", toEmail);
+		} catch (Exception e) {
+			log.error("❌ Failed to send password reset email to: {}", toEmail, e);
+		}
+	}
+
+	@Override
+	public void sendGenericEmail(String toEmail, String subject, String content) {
+		try {
+			sendEmail(toEmail, subject, content);
+			log.info("✅ Generic email sent to: {}", toEmail);
+		} catch (Exception e) {
+			log.error("❌ Failed to send generic email to: {}", toEmail, e);
+		}
+	}
+
+	private void sendEmail(String to, String subject, String htmlContent) throws MessagingException {
+		MimeMessage message = mailSender.createMimeMessage();
+		MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+		helper.setTo(to);
+		helper.setSubject(subject);
+		helper.setText(htmlContent, true);
+		helper.setFrom("noreply@ecomms.com");
+
+		mailSender.send(message);
+	}
+}

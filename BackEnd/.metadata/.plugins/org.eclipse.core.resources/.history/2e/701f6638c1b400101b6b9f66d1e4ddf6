@@ -1,0 +1,70 @@
+package com.example.paymentGateway.Controller;
+
+import java.util.List;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import com.example.paymentGateway.Entity.Product;
+import com.example.paymentGateway.Service.ProductService;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+
+
+@RestController
+@RequestMapping("/api/products")
+@RequiredArgsConstructor
+public class ProductController {
+
+    private final ProductService productService;
+
+    /** ✅ Get all available products */
+    @GetMapping
+    public ResponseEntity<List<Product>> getAllProducts() {
+        return ResponseEntity.ok(productService.getAllProducts());
+    }
+
+    /** ✅ Get a product by ID */
+    @GetMapping("/{id}")
+    public ResponseEntity<Product> getProductById(@PathVariable Long id) {
+        Product product = productService.findProductById(id);
+        return ResponseEntity.ok(product);
+    }
+
+    /** ✅ Add a new product */
+    @PostMapping
+    public ResponseEntity<Product> addProduct(@Valid @RequestBody Product product) {
+        Product savedProduct = productService.addProduct(product);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedProduct);
+    }
+
+    /** ✅ Update an existing product */
+    @PutMapping("/{id}")
+    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @Valid @RequestBody Product product) {
+        Product updatedProduct = productService.updateProduct(id, product);
+        return ResponseEntity.ok(updatedProduct);
+    }
+
+    /** ✅ Delete a product by ID */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteProduct(@PathVariable Long id) {
+        productService.deleteProduct(id);
+        return ResponseEntity.ok("✅ Product with ID " + id + " deleted successfully.");
+    }
+
+    /** ✅ Get products by category */
+    @GetMapping("/category/{category}")
+    public ResponseEntity<List<Product>> getProductsByCategory(@PathVariable String category) {
+        List<Product> products = productService.getProductsByCategory(category);
+        return ResponseEntity.ok(products);
+    }
+
+    /** ✅ Search products by keyword */
+    @GetMapping("/search")
+    public ResponseEntity<List<Product>> searchProducts(@RequestParam String keyword) {
+        List<Product> products = productService.searchProducts(keyword);
+        return ResponseEntity.ok(products);
+    }
+}

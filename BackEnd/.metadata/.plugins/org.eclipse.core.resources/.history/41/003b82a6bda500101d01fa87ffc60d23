@@ -1,0 +1,19 @@
+package com.chandu.Entity;
+
+/**
+ * Represents the current status of an order in the system.
+ */
+public enum Status {
+
+    /** Order has been placed but not yet processed */
+    PENDING,
+
+    /** Order has been shipped to the customer */
+    SHIPPED,
+
+    /** Order has been delivered successfully */
+    DELIVERED,
+
+    /** Order has been cancelled by the user or admin */
+    CANCELLED
+}

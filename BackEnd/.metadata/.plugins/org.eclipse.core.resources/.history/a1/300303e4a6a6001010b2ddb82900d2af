@@ -1,0 +1,70 @@
+package com.chandu.DTO;
+
+import java.time.LocalDateTime;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
+
+/**
+ * DTO for sending payment information back to the frontend
+ * after payment creation or verification.
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@ToString
+public class PaymentResponse {
+
+    private String paymentId;
+    private String orderId;
+    private Double amount;
+    @Builder.Default
+    private String currency = "INR";
+    private String status;
+    private String razorpayOrderId;
+    private String razorpayPaymentId;
+    private String razorpaySignature;
+    private LocalDateTime paymentDate;
+    private String message;
+
+    /**
+     * ✅ Simplified constructor for backward compatibility
+     */
+    public PaymentResponse(String paymentId, String orderId, Double amount, String status, String message) {
+        this.paymentId = paymentId;
+        this.orderId = orderId;
+        this.amount = amount;
+        this.status = status;
+        this.message = message;
+        this.paymentDate = LocalDateTime.now();
+    }
+
+    /**
+     * ✅ Static helper for error responses.
+     */
+    public static PaymentResponse error(String message, Double amount) {
+        return PaymentResponse.builder()
+                .amount(amount)
+                .status("FAILED")
+                .message(message)
+                .paymentDate(LocalDateTime.now())
+                .build();
+    }
+
+    /**
+     * ✅ Static helper for success responses.
+     */
+    public static PaymentResponse success(String orderId, Double amount, String message) {
+        return PaymentResponse.builder()
+                .orderId(orderId)
+                .amount(amount)
+                .status("SUCCESS")
+                .message(message)
+                .paymentDate(LocalDateTime.now())
+                .build();
+    }
+}

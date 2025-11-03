@@ -1,0 +1,42 @@
+package com.chandu.DTO;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+
+/**
+ * DTO for verifying Razorpay payment authenticity.
+ * This is sent from the frontend after successful payment completion,
+ * and the backend verifies the signature using Razorpay's secret key.
+ * 
+ * Example JSON:
+ * {
+ *   "razorpayOrderId": "order_DBJOWzybf0sJbb",
+ *   "razorpayPaymentId": "pay_29QQoUBi66xm2f",
+ *   "razorpaySignature": "af63d01f9b65c7e2...",
+ *   "orderId": 101
+ * }
+ */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
+public class PaymentVerificationRequest {
+
+    /** Razorpay-generated Order ID */
+    @NotBlank(message = "Razorpay Order ID is required")
+    private String razorpayOrderId;
+
+    /** Razorpay-generated Payment ID */
+    @NotBlank(message = "Razorpay Payment ID is required")
+    private String razorpayPaymentId;
+
+    /** Signature returned by Razorpay for verification */
+    @NotBlank(message = "Razorpay Signature is required")
+    private String razorpaySignature;
+
+    /** Internal Order ID from your system */
+    @NotNull(message = "Order ID is required")
+    private Long orderId;
+}

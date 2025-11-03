@@ -1,0 +1,41 @@
+package com.chandu.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import com.chandu.Entity.User;
+
+/**
+ * Repository interface for managing {@link User} entities.
+ * Provides built-in CRUD operations and common user lookup methods.
+ */
+@Repository
+public interface UserRepository extends JpaRepository<User, Long> {
+
+    /**
+     * Finds a user by their email address.
+     *
+     * @param email the user's email address
+     * @return an Optional containing the user if found, or empty if not
+     */
+    Optional<User> findByEmail(String email);
+
+    /**
+     * Checks if a user already exists with the given email.
+     *
+     * @param email email to check
+     * @return true if a user with this email exists, false otherwise
+     */
+    boolean existsByEmail(String email);
+
+    /**
+     * Finds users by name (useful for search in admin panels).
+     *
+     * @param name partial or full user name
+     * @return list of users matching the name
+     */
+    List<User> findByNameContainingIgnoreCase(String name);
+}

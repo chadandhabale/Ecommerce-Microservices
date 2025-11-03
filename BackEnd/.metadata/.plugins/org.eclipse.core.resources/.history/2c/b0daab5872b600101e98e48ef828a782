@@ -1,0 +1,262 @@
+package com.example.paymentGateway.ServiceImpl;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import com.example.paymentGateway.DTO.PaymentResponse;
+import com.example.paymentGateway.DTO.PaymentStatistics;
+import com.example.paymentGateway.Entity.Payment;
+import com.example.paymentGateway.Entity.PaymentStatus;
+import com.example.paymentGateway.Repository.PaymentRepository;
+import com.example.paymentGateway.Service.EmailService;
+import com.example.paymentGateway.Service.PaymentService;
+import com.razorpay.Order;
+import com.razorpay.RazorpayClient;
+import com.razorpay.Utils;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class PaymentServiceImpl implements PaymentService {
+
+    private final PaymentRepository paymentRepository;
+    private final EmailService emailService;
+
+    @Value("${razorpay.key.id}")
+    private String razorpayKeyId;
+
+    @Value("${razorpay.key.secret}")
+    private String razorpayKeySecret;
+
+    @Value("${payment.mock:true}")
+    private boolean paymentMock;
+
+    // ✅ Create Payment Order (Existing - Keep as is)
+    @Override
+    public PaymentResponse createPaymentOrder(Map<String, Object> data) {
+        try {
+            log.info("💳 Creating Razorpay payment order: {}", data);
+
+            double amountDouble = ((Number) data.get("amount")).doubleValue();
+            long userId = ((Number) data.get("userId")).longValue();
+            long orderId = ((Number) data.get("orderId")).longValue();
+
+            // ✅ Razorpay Client
+            RazorpayClient client = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
+
+            JSONObject orderRequest = new JSONObject();
+            orderRequest.put("amount", (int) (amountDouble * 100));
+            orderRequest.put("currency", "INR");
+            orderRequest.put("receipt", "txn_" + UUID.randomUUID());
+
+            Order order = client.orders.create(orderRequest);
+
+            // ✅ Save in DB
+            Payment payment = Payment.builder()
+                    .razorpayOrderId(order.get("id"))
+                    .amount(amountDouble)
+                    .currency("INR")
+                    .status(PaymentStatus.PENDING)
+                    .userId(userId)
+                    .orderId(orderId)
+                    .build();
+
+            paymentRepository.save(payment);
+
+            // ✅ Return Razorpay order + public key
+            return new PaymentResponse(
+                    order.get("id"),
+                    amountDouble,
+                    "INR",
+                    "PENDING",
+                    orderId,
+                    userId,
+                    razorpayKeyId
+            );
+
+        } catch (Exception e) {
+            log.error("❌ Error creating Razorpay order: {}", e.getMessage(), e);
+            throw new RuntimeException("Payment creation failed", e);
+        }
+    }
+
+    // ✅ Verify Payment Signature (Existing - Keep as is)
+    @Override
+    public boolean verifyPaymentSignature(Map<String, String> details) {
+        try {
+            String orderId = details.get("razorpay_order_id");
+            String paymentId = details.get("razorpay_payment_id");
+            String signature = details.get("razorpay_signature");
+            String email = details.get("email");
+
+            JSONObject attributes = new JSONObject();
+            attributes.put("razorpay_order_id", orderId);
+            attributes.put("razorpay_payment_id", paymentId);
+            attributes.put("razorpay_signature", signature);
+
+            boolean isValid = Utils.verifyPaymentSignature(attributes, razorpayKeySecret);
+            log.info("🧾 Payment verification result: {}", isValid);
+
+            if (isValid) {
+                Payment payment = paymentRepository.findByRazorpayOrderId(orderId);
+                if (payment != null) {
+                    payment.setStatus(PaymentStatus.SUCCESS);
+                    paymentRepository.save(payment);
+
+                    // ✅ Send confirmation email
+                    if (email != null && !email.isBlank()) {
+                        emailService.sendEmail(
+                                email,
+                                "Payment Successful - Order #" + payment.getOrderId(),
+                                String.format(
+                                        "Dear Customer,\n\nYour payment of ₹%.2f for Order #%d was successful!\n\nThank you for shopping with us.\n\nBest Regards,\nEcomms Team",
+                                        payment.getAmount(), payment.getOrderId())
+                        );
+                        log.info("📩 Payment success email sent to {}", email);
+                    }
+                }
+            }
+
+            return isValid;
+        } catch (Exception e) {
+            log.error("❌ Payment verification failed: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    // ✅ Update Payment Status (Existing - Keep as is)
+    @Override
+    public Payment updatePaymentStatus(String razorpayOrderId, String status, String email) {
+        Payment payment = paymentRepository.findByRazorpayOrderId(razorpayOrderId);
+        if (payment == null) throw new RuntimeException("Payment not found: " + razorpayOrderId);
+
+        payment.setStatus(PaymentStatus.valueOf(status.toUpperCase()));
+        Payment updated = paymentRepository.save(payment);
+
+        if (updated.getStatus() == PaymentStatus.SUCCESS && email != null) {
+            emailService.sendEmail(
+                    email,
+                    "Payment Successful - Order #" + updated.getOrderId(),
+                    String.format(
+                            "Dear Customer,\n\nYour payment of ₹%.2f for Order #%d was successful!\n\nThank you for shopping with us.\n\nBest Regards,\nEcomms Team",
+                            updated.getAmount(), updated.getOrderId())
+            );
+            log.info("📩 Payment confirmation email sent to {}", email);
+        }
+
+        return updated;
+    }
+
+    // ✅ Get Payment by Razorpay Order ID (Existing - Keep as is)
+    @Override
+    public Payment getPaymentByOrderId(String razorpayOrderId) {
+        return paymentRepository.findByRazorpayOrderId(razorpayOrderId);
+    }
+
+    // ✅ NEW: Get payments by user
+    @Override
+    public List<Payment> getPaymentsByUser(Long userId) {
+        log.info("📊 Fetching payments for user ID: {}", userId);
+        List<Payment> payments = paymentRepository.findByUserId(userId);
+        if (payments.isEmpty()) {
+            log.warn("No payments found for user ID: {}", userId);
+        }
+        return payments;
+    }
+
+    // ✅ NEW: Get payments by status
+    @Override
+    public List<Payment> getPaymentsByStatus(PaymentStatus status) {
+        log.info("📊 Fetching payments with status: {}", status);
+        List<Payment> payments = paymentRepository.findByStatus(status);
+        if (payments.isEmpty()) {
+            log.warn("No payments found with status: {}", status);
+        }
+        return payments;
+    }
+
+    // ✅ NEW: Refund payment
+    @Override
+    public Payment refundPayment(String razorpayOrderId, Double amount) {
+        log.info("🔄 Processing refund for order: {}, amount: {}", razorpayOrderId, amount);
+        
+        Payment payment = paymentRepository.findByRazorpayOrderId(razorpayOrderId);
+        if (payment == null) {
+            throw new RuntimeException("Payment not found: " + razorpayOrderId);
+        }
+
+        if (payment.getStatus() != PaymentStatus.SUCCESS) {
+            throw new RuntimeException("Cannot refund payment with status: " + payment.getStatus());
+        }
+
+        try {
+            RazorpayClient client = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
+            
+            JSONObject refundRequest = new JSONObject();
+            refundRequest.put("payment_id", payment.getRazorpayPaymentId());
+            if (amount != null && amount > 0) {
+                refundRequest.put("amount", (int) (amount * 100)); // Convert to paise
+            }
+            refundRequest.put("speed", "normal");
+
+            // In a real implementation, you would call Razorpay refund API
+            // JSONObject refund = client.Payments.refund(refundRequest);
+            
+            // For now, we'll simulate a refund
+            if (paymentMock) {
+                payment.setStatus(PaymentStatus.REFUNDED);
+                Payment refundedPayment = paymentRepository.save(payment);
+                log.info("✅ Refund processed successfully for order: {}", razorpayOrderId);
+                return refundedPayment;
+            } else {
+                throw new RuntimeException("Refund functionality requires real Razorpay integration");
+            }
+
+        } catch (Exception e) {
+            log.error("❌ Refund failed for order {}: {}", razorpayOrderId, e.getMessage());
+            throw new RuntimeException("Refund processing failed", e);
+        }
+    }
+
+    // ✅ NEW: Get payment statistics
+    @Override
+    public PaymentStatistics getPaymentStatistics() {
+        log.info("📈 Generating payment statistics");
+        
+        Long totalPayments = paymentRepository.count();
+        Long successfulPayments = paymentRepository.countByStatus(PaymentStatus.SUCCESS);
+        Long pendingPayments = paymentRepository.countByStatus(PaymentStatus.PENDING);
+        Long failedPayments = paymentRepository.countByStatus(PaymentStatus.FAILED);
+        
+        Double totalRevenue = paymentRepository.getTotalSuccessfulAmount();
+        if (totalRevenue == null) totalRevenue = 0.0;
+        
+        // Calculate today's revenue
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfDay = LocalDate.now().atTime(23, 59, 59);
+        List<Payment> todayPayments = paymentRepository.findPaymentsBetweenDates(startOfDay, endOfDay);
+        
+        Double todayRevenue = todayPayments.stream()
+                .filter(p -> p.getStatus() == PaymentStatus.SUCCESS)
+                .mapToDouble(Payment::getAmount)
+                .sum();
+
+        return new PaymentStatistics(
+                totalPayments,
+                successfulPayments,
+                pendingPayments,
+                failedPayments,
+                totalRevenue,
+                todayRevenue
+        );
+    }
+}

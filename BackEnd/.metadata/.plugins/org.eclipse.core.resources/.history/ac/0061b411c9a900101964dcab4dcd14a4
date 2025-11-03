@@ -1,0 +1,19 @@
+package com.chandu.Service;
+
+import java.util.List;
+import java.util.Optional;
+
+import com.chandu.Entity.AppUser;
+
+public interface UserService {
+
+	AppUser registerUser(AppUser user);
+
+	AppUser loginUser(String email, String password);
+
+	List<AppUser> getAllUsers();
+
+	Optional<AppUser> findByEmail(String email);
+
+	void deleteUser(Long userId);
+}

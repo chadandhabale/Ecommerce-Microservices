@@ -1,0 +1,19 @@
+package com.example.paymentGateway.DTO;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class PaymentResponse {
+
+    private String razorpayOrderId;  // Razorpay Order ID
+    private double amount;           // Amount in rupees
+    private String currency;         // INR
+    private String status;           // PENDING / SUCCESS / FAILED
+    private Long orderId;            // Order ID from E_COMMERCE
+    private Long userId;             // User ID
+    private String keyId;            // Razorpay public key (for frontend checkout)
+}

@@ -1,0 +1,30 @@
+package com.chandu.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import com.chandu.Entity.Payment;
+import com.chandu.Entity.PaymentStatus;
+
+/**
+ * Repository interface for managing Payment entities. Provides methods for
+ * retrieving payment records using various identifiers.
+ */
+@Repository
+public interface PaymentRepository extends JpaRepository<Payment, Long> {
+
+	/** Find payment by Razorpay order ID */
+	Optional<Payment> findByRazorpayOrderId(String razorpayOrderId);
+
+	/** Find payment by Razorpay payment ID */
+	Optional<Payment> findByRazorpayPaymentId(String razorpayPaymentId);
+
+	/** Find all payments by their status (CREATED, SUCCESS, FAILED) */
+	List<Payment> findByStatus(PaymentStatus status);
+
+	/** Find payment by internal order ID (linked via OneToOne relation) */
+	Optional<Payment> findByOrder_Id(Long orderId);
+}

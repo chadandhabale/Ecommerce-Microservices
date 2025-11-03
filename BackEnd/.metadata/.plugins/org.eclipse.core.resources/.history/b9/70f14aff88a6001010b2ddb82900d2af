@@ -1,0 +1,86 @@
+package com.chandu.Controller;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import com.chandu.Entity.Orders;
+import com.chandu.Repository.OrderRepository;
+import com.chandu.Service.EmailService;
+
+import lombok.RequiredArgsConstructor;
+
+/**
+ * Controller for testing and triggering email notifications.
+ */
+@RestController
+@RequestMapping("/api/email")
+@CrossOrigin("*")
+@RequiredArgsConstructor
+public class EmailController {
+
+    private final EmailService emailService;
+    private final OrderRepository orderRepository;
+
+    /**
+     * Test endpoint to send order confirmation email.
+     * 
+     * Example usage:
+     * POST → /api/email/test-order-confirmation/1
+     */
+    @PostMapping("/test-order-confirmation/{orderId}")
+    public ResponseEntity<String> testOrderConfirmationEmail(@PathVariable Long orderId) {
+        try {
+            Orders order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+
+            String userEmail = order.getUser().getEmail();
+            emailService.sendOrderConfirmationEmail(userEmail, order);
+
+            return ResponseEntity.ok("✅ Order confirmation email sent successfully to " + userEmail);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("❌ Failed to send email: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Test endpoint to send payment success email.
+     * 
+     * Example usage:
+     * POST → /api/email/test-payment-success/1
+     */
+    @PostMapping("/test-payment-success/{orderId}")
+    public ResponseEntity<String> testPaymentSuccessEmail(@PathVariable Long orderId) {
+        try {
+            Orders order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+
+            String userEmail = order.getUser().getEmail();
+            emailService.sendPaymentSuccessEmail(userEmail, order);
+
+            return ResponseEntity.ok("✅ Payment success email sent successfully to " + userEmail);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("❌ Failed to send email: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Test endpoint to send shipping update email.
+     * 
+     * Example usage:
+     * POST → /api/email/test-shipping-update/1
+     */
+    @PostMapping("/test-shipping-update/{orderId}")
+    public ResponseEntity<String> testShippingUpdateEmail(@PathVariable Long orderId) {
+        try {
+            Orders order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+
+            String userEmail = order.getUser().getEmail();
+            emailService.sendShippingUpdateEmail(userEmail, order);
+
+            return ResponseEntity.ok("✅ Shipping update email sent successfully to " + userEmail);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("❌ Failed to send email: " + e.getMessage());
+        }
+    }
+}

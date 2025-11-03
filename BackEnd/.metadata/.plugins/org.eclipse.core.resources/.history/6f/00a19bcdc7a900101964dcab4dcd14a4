@@ -1,0 +1,68 @@
+package com.chandu.Controller;
+
+import java.util.List;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.chandu.Entity.AppUser;
+import com.chandu.Service.UserService;
+
+import lombok.RequiredArgsConstructor;
+
+/**
+ * REST controller for managing user operations like registration, login, and fetching all users.
+ */
+@RestController
+@RequestMapping("/users")
+@RequiredArgsConstructor
+public class AppUserController {
+
+    private final UserService userService;
+
+    /**
+     * Registers a new user.
+     *
+     * @param user the user details to be registered
+     * @return the registered user
+     */
+    @PostMapping("/register")
+    public ResponseEntity<AppUser> registerUser(@RequestBody AppUser user) {
+        AppUser registeredUser = userService.registerUser(user);
+        return new ResponseEntity<>(registeredUser, HttpStatus.CREATED);
+    }
+
+    /**
+     * Logs in a user by verifying email and password.
+     *
+     * @param user contains the email and password for login
+     * @return the logged-in user if credentials are valid
+     */
+    @PostMapping("/login")
+    public ResponseEntity<?> loginUser(@RequestBody AppUser user) {
+        AppUser loggedInUser = userService.loginUser(user.getEmail(), user.getPassword());
+
+        if (loggedInUser != null) {
+            return ResponseEntity.ok(loggedInUser);
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Invalid email or password");
+        }
+    }
+
+    /**
+     * Retrieves all registered users.
+     *
+     * @return a list of all users
+     */
+    @GetMapping
+    public ResponseEntity<List<AppUser>> getAllUsers() {
+        List<AppUser> users = userService.getAllUsers();
+        return ResponseEntity.ok(users);
+    }
+}

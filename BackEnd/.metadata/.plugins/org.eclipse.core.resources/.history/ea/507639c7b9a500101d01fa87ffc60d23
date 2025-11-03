@@ -1,0 +1,9 @@
+package com.chandu.Service;
+
+public interface PaymentService {
+	  PaymentResponse createPaymentOrder(PaymentRequest paymentRequest);
+	    PaymentResponse verifyPayment(PaymentVerificationRequest verificationRequest);
+	    PaymentResponse getPaymentStatus(String paymentId);
+	    boolean refundPayment(String paymentId, Double amount);
+	    JSONObject createRazorpayOrder(Double amount, String currency, String receipt) throws Exception;
+}

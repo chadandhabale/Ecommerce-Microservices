@@ -1,0 +1,65 @@
+package com.chandu.Controller;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.chandu.DTO.PaymentRequest;
+import com.chandu.DTO.PaymentResponse;
+import com.chandu.DTO.PaymentVerificationRequest;
+import com.chandu.Service.PaymentService;
+
+import lombok.RequiredArgsConstructor;
+
+@RestController
+@RequestMapping("/api/payments")
+@CrossOrigin("*")
+@RequiredArgsConstructor
+public class PaymentController {
+
+    private final PaymentService paymentService;
+
+    /**
+     * Creates a new Razorpay payment order
+     */
+    @PostMapping("/create-order")
+    public ResponseEntity<PaymentResponse> createPaymentOrder(@RequestBody PaymentRequest paymentRequest) {
+        PaymentResponse response = paymentService.createPaymentOrder(paymentRequest);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Verifies payment after successful transaction
+     */
+    @PostMapping("/verify")
+    public ResponseEntity<PaymentResponse> verifyPayment(@RequestBody PaymentVerificationRequest verificationRequest) {
+        PaymentResponse response = paymentService.verifyPayment(verificationRequest);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Gets payment status by payment ID
+     */
+    @GetMapping("/status/{paymentId}")
+    public ResponseEntity<PaymentResponse> getPaymentStatus(@PathVariable String paymentId) {
+        PaymentResponse response = paymentService.getPaymentStatus(paymentId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Processes refund for a payment
+     */
+    @PostMapping("/refund/{paymentId}")
+    public ResponseEntity<String> refundPayment(@PathVariable String paymentId, @RequestParam Double amount) {
+        boolean success = paymentService.refundPayment(paymentId, amount);
+        return success ? 
+            ResponseEntity.ok("Refund processed successfully") : 
+            ResponseEntity.badRequest().body("Refund failed");
+    }
+}

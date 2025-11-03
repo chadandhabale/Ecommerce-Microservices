@@ -1,0 +1,276 @@
+package com.chandu.ServiceImpl;
+
+import java.time.LocalDateTime;
+import java.util.Optional;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
+import org.apache.commons.codec.binary.Hex;
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.chandu.DTO.PaymentRequest;
+import com.chandu.DTO.PaymentResponse;
+import com.chandu.DTO.PaymentVerificationRequest;
+import com.chandu.Entity.Orders;
+import com.chandu.Entity.Payment;
+import com.chandu.Entity.PaymentStatus;
+import com.chandu.Entity.Status;
+import com.chandu.Entity.User;
+import com.chandu.Repository.OrderRepository;
+import com.chandu.Repository.PaymentRepository;
+import com.chandu.Repository.UserRepository;
+import com.chandu.Service.EmailService;
+import com.chandu.Service.PaymentService;
+import com.razorpay.RazorpayClient;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@Transactional
+@RequiredArgsConstructor
+public class PaymentServiceImpl implements PaymentService {
+
+    private final RazorpayClient razorpayClient;
+    private final PaymentRepository paymentRepository;
+    private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
+    private final EmailService emailService;
+
+    @Value("${razorpay.key.secret}")
+    private String razorpaySecret;
+
+    @Override
+    public PaymentResponse createPaymentOrder(PaymentRequest paymentRequest) {
+        try {
+            log.info("🔄 Creating payment order for order ID: {}", paymentRequest.getOrderId());
+
+            // Find the existing order
+            Orders order = orderRepository.findById(paymentRequest.getOrderId())
+                    .orElseThrow(() -> new RuntimeException("Order not found with ID: " + paymentRequest.getOrderId()));
+
+            // Find user for the order
+            User user = order.getUser();
+            if (user == null) {
+                throw new RuntimeException("User not found for order ID: " + paymentRequest.getOrderId());
+            }
+
+            // Create Razorpay order
+            JSONObject razorpayOrder = createRazorpayOrder(
+                    paymentRequest.getAmount(),
+                    paymentRequest.getCurrency(),
+                    "receipt_" + order.getId()
+            );
+
+            // Create and save payment record
+            Payment payment = new Payment();
+            payment.setOrder(order);
+            payment.setUser(user);
+            payment.setAmount(paymentRequest.getAmount());
+            payment.setCurrency(paymentRequest.getCurrency());
+            payment.setPaymentMethod(paymentRequest.getPaymentMethod());
+            payment.setRazorpayOrderId(razorpayOrder.getString("id"));
+            payment.setStatus(PaymentStatus.CREATED);
+            payment.setPaymentDate(LocalDateTime.now());
+
+            Payment savedPayment = paymentRepository.save(payment);
+
+            // Update order with payment reference
+            order.setPayment(savedPayment);
+            orderRepository.save(order);
+
+            // Send order confirmation email
+            emailService.sendOrderConfirmationEmail(user.getEmail(), order);
+
+            // Build response
+            PaymentResponse response = PaymentResponse.builder()
+                    .paymentId(savedPayment.getId().toString())
+                    .orderId(order.getId().toString())
+                    .amount(paymentRequest.getAmount())
+                    .currency(paymentRequest.getCurrency())
+                    .razorpayOrderId(razorpayOrder.getString("id"))
+                    .status(PaymentStatus.CREATED.name())
+                    .message("Payment order created successfully")
+                    .paymentDate(LocalDateTime.now())
+                    .success(true)
+                    .build();
+
+            log.info("✅ Payment order created successfully for order ID: {}", order.getId());
+            return response;
+
+        } catch (Exception e) {
+            log.error("❌ Failed to create payment order: {}", e.getMessage());
+            return PaymentResponse.error("Failed to create payment order: " + e.getMessage(), 
+                    paymentRequest != null ? paymentRequest.getAmount() : 0.0);
+        }
+    }
+
+    @Override
+    public JSONObject createRazorpayOrder(Double amount, String currency, String receipt) throws Exception {
+        JSONObject orderRequest = new JSONObject();
+        orderRequest.put("amount", Math.round(amount * 100)); // Convert to paise
+        orderRequest.put("currency", currency);
+        orderRequest.put("receipt", receipt);
+        orderRequest.put("payment_capture", 1);
+
+        log.info("Creating Razorpay order with amount: {}, currency: {}, receipt: {}", amount, currency, receipt);
+        
+        JSONObject razorpayOrder = new JSONObject(razorpayClient.orders.create(orderRequest).toString());
+        log.info("Razorpay order created: {}", razorpayOrder.getString("id"));
+        
+        return razorpayOrder;
+    }
+
+    @Override
+    public PaymentResponse verifyPayment(PaymentVerificationRequest verificationRequest) {
+        try {
+            log.info("🔍 Verifying payment for Razorpay order ID: {}", verificationRequest.getRazorpayOrderId());
+
+            // Find payment by Razorpay order ID
+            Payment payment = paymentRepository.findByRazorpayOrderId(verificationRequest.getRazorpayOrderId())
+                    .orElseThrow(() -> new RuntimeException("Payment not found for order ID: " + verificationRequest.getRazorpayOrderId()));
+
+            // Validate signature
+            String payload = verificationRequest.getRazorpayOrderId() + "|" + verificationRequest.getRazorpayPaymentId();
+            String generatedSignature = hmacSHA256(payload, razorpaySecret);
+
+            if (!generatedSignature.equals(verificationRequest.getRazorpaySignature())) {
+                log.error("❌ Invalid payment signature for order: {}", verificationRequest.getRazorpayOrderId());
+                payment.setStatus(PaymentStatus.FAILED);
+                payment.setFailureReason("Invalid signature");
+                paymentRepository.save(payment);
+                throw new RuntimeException("Invalid payment signature");
+            }
+
+            // Update payment status to success
+            payment.setStatus(PaymentStatus.SUCCESS);
+            payment.setRazorpayPaymentId(verificationRequest.getRazorpayPaymentId());
+            payment.setRazorpaySignature(verificationRequest.getRazorpaySignature());
+            payment.setPaymentDate(LocalDateTime.now());
+
+            // Update order status to CONFIRMED
+            Orders order = payment.getOrder();
+            order.setStatus(Status.CONFIRMED);
+            orderRepository.save(order);
+            paymentRepository.save(payment);
+
+            // Send success emails
+            emailService.sendOrderConfirmationEmail(order.getUser().getEmail(), order);
+            emailService.sendPaymentSuccessEmail(order.getUser().getEmail(), order);
+
+            // Build success response
+            PaymentResponse response = PaymentResponse.builder()
+                    .paymentId(payment.getId().toString())
+                    .orderId(order.getId().toString())
+                    .amount(payment.getAmount())
+                    .currency(payment.getCurrency())
+                    .status(PaymentStatus.SUCCESS.name())
+                    .razorpayOrderId(payment.getRazorpayOrderId())
+                    .razorpayPaymentId(payment.getRazorpayPaymentId())
+                    .razorpaySignature(payment.getRazorpaySignature())
+                    .paymentDate(payment.getPaymentDate())
+                    .message("Payment verified successfully")
+                    .success(true)
+                    .build();
+
+            log.info("✅ Payment verified successfully for order ID: {}", order.getId());
+            return response;
+
+        } catch (Exception e) {
+            log.error("❌ Payment verification failed: {}", e.getMessage());
+            return PaymentResponse.error("Payment verification failed: " + e.getMessage(), 0.0);
+        }
+    }
+
+    @Override
+    public PaymentResponse getPaymentStatus(String paymentId) {
+        try {
+            Payment payment = paymentRepository.findById(Long.parseLong(paymentId))
+                    .orElseThrow(() -> new RuntimeException("Payment not found with ID: " + paymentId));
+
+            PaymentResponse response = PaymentResponse.builder()
+                    .paymentId(payment.getId().toString())
+                    .orderId(payment.getOrder().getId().toString())
+                    .amount(payment.getAmount())
+                    .currency(payment.getCurrency())
+                    .status(payment.getStatus().name())
+                    .razorpayOrderId(payment.getRazorpayOrderId())
+                    .razorpayPaymentId(payment.getRazorpayPaymentId())
+                    .paymentDate(payment.getPaymentDate())
+                    .message("Payment status retrieved successfully")
+                    .success(payment.getStatus() == PaymentStatus.SUCCESS)
+                    .build();
+
+            return response;
+        } catch (Exception e) {
+            log.error("❌ Error fetching payment status: {}", e.getMessage());
+            return PaymentResponse.error("Failed to fetch payment status: " + e.getMessage(), 0.0);
+        }
+    }
+
+    @Override
+    public boolean refundPayment(String paymentId, Double amount) {
+        try {
+            log.info("💸 Processing refund for payment ID: {}, Amount: {}", paymentId, amount);
+            
+            JSONObject refundRequest = new JSONObject();
+            refundRequest.put("amount", Math.round(amount * 100));
+            refundRequest.put("speed", "normal");
+
+            razorpayClient.payments.refund(paymentId, refundRequest);
+            
+            // Update payment status to refunded
+            Payment payment = paymentRepository.findByRazorpayPaymentId(paymentId)
+                    .orElseThrow(() -> new RuntimeException("Payment not found"));
+            payment.setStatus(PaymentStatus.REFUNDED);
+            paymentRepository.save(payment);
+
+            log.info("✅ Refund processed successfully for payment ID: {}", paymentId);
+            return true;
+        } catch (Exception e) {
+            log.error("❌ Error processing refund: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    private String hmacSHA256(String data, String secret) throws Exception {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        SecretKeySpec secretKey = new SecretKeySpec(secret.getBytes(), "HmacSHA256");
+        mac.init(secretKey);
+        byte[] hashBytes = mac.doFinal(data.getBytes());
+        return new String(Hex.encodeHex(hashBytes));
+    }
+
+    // Handle payment failure
+    public void handlePaymentFailure(String razorpayOrderId, String failureReason) {
+        try {
+            Payment payment = paymentRepository.findByRazorpayOrderId(razorpayOrderId)
+                    .orElseThrow(() -> new RuntimeException("Payment not found"));
+
+            payment.setStatus(PaymentStatus.FAILED);
+            payment.setFailureReason(failureReason);
+            paymentRepository.save(payment);
+
+            // Send payment failure email
+            Orders order = payment.getOrder();
+            emailService.sendGenericEmail(
+                order.getUser().getEmail(),
+                "Payment Failed - Order #" + order.getId(),
+                "Dear " + order.getUser().getName() + ",\n\n" +
+                "Your payment for order #" + order.getId() + " has failed.\n" +
+                "Reason: " + failureReason + "\n\n" +
+                "Please try again or contact support.\n\n" +
+                "Best regards,\nSHOPIFY Team"
+            );
+
+            log.info("❌ Payment failed for order: {}, Reason: {}", razorpayOrderId, failureReason);
+        } catch (Exception e) {
+            log.error("❌ Error handling payment failure: {}", e.getMessage());
+        }
+    }
+}

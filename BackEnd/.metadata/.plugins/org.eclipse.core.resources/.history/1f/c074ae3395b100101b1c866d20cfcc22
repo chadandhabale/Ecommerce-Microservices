@@ -1,0 +1,42 @@
+package com.example.demo.Entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.time.LocalDateTime;
+
+/**
+ * Represents a payment transaction for an order.
+ */
+@Entity
+@Table(name = "payments")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Payment {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "razorpay_order_id", unique = true)
+    private String razorpayOrderId;
+
+    @Column(name = "razorpay_payment_id")
+    private String razorpayPaymentId;
+
+    @Column(name = "razorpay_signature")
+    private String razorpaySignature;
+
+    private Double amount;
+
+    private String currency = "INR";
+
+    @Enumerated(EnumType.STRING)
+    private PaymentStatus status = PaymentStatus.PENDING ;
+
+    private Long userId;   // reference to user (from User service)
+    private Long orderId;  // reference to order (from Order service)
+
+    private LocalDateTime createdAt = LocalDateTime.now();
+}

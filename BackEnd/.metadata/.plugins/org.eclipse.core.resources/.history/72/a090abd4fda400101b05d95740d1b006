@@ -1,0 +1,81 @@
+package com.chandu.ServiceImpl;
+
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
+import com.chandu.Entity.Product;
+import com.chandu.Repository.ProductRepository;
+import com.chandu.Service.ProductService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * Implementation of the {@link ProductService} interface.
+ * Handles business logic for managing products.
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class ProductServiceImpl implements ProductService {
+
+    private final ProductRepository productRepository;
+
+    /**
+     * Retrieves all available products from the database.
+     *
+     * @return a list of all products
+     */
+    @Override
+    public List<Product> getAllProducts() {
+        log.info("Fetching all products...");
+        return productRepository.findAll();
+    }
+
+    /**
+     * Finds a product by its ID.
+     *
+     * @param productId the ID of the product to fetch
+     * @return the found {@link Product}
+     * @throws RuntimeException if the product does not exist
+     */
+    @Override
+    public Product findProductById(Long productId) {
+        log.info("Fetching product with ID: {}", productId);
+        return productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with ID: " + productId));
+    }
+
+    /**
+     * Adds a new product to the system.
+     *
+     * @param product the product to be saved
+     * @return the saved {@link Product} instance
+     */
+    @Override
+    public Product addProduct(Product product) {
+        log.info("Adding new product: {}", product.getName());
+        return productRepository.save(product);
+    }
+
+    /**
+     * Deletes a product by its ID.
+     *
+     * @param productId the ID of the product to delete
+     * @throws RuntimeException if the product does not exist
+     */
+    @Override
+    public void deleteProduct(Long productId) {
+        log.info("Deleting product with ID: {}", productId);
+
+        if (!productRepository.existsById(productId)) {
+            throw new RuntimeException("Cannot delete. Product not found with ID: " + productId);
+        }
+
+        productRepository.deleteById(productId);
+        log.info("Product with ID {} deleted successfully.", productId);
+    }
+
+
+}

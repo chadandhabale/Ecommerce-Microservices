@@ -1,0 +1,135 @@
+package com.chandu.ServiceImpl;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.modelmapper.ModelMapper;
+import org.springframework.stereotype.Service;
+
+import com.chandu.DTO.OrderDto;
+import com.chandu.DTO.OrderItemDto;
+import com.chandu.Entity.Order;
+import com.chandu.Entity.OrderItem;
+import com.chandu.Entity.Product;
+import com.chandu.Entity.Status;
+import com.chandu.Entity.User;
+import com.chandu.Repository.OrderRepository;
+import com.chandu.Repository.ProductRepository;
+import com.chandu.Repository.UserRepository;
+import com.chandu.Service.OrderService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * Implementation of the OrderService interface.
+ * Handles business logic related to placing and fetching orders.
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class OrderServiceImpl implements OrderService {
+
+    private final OrderRepository orderRepository;
+    private final ProductRepository productRepository;
+    private final UserRepository userRepository;
+    private final ModelMapper modelMapper;
+
+    /**
+     * Places a new order for a user with given product quantities.
+     */
+    @Override
+    public OrderDto placeOrder(Long userId, Map<Long, Integer> productQuantities, Double totalAmount) {
+        log.info("Placing new order for user ID: {}", userId);
+
+        // 🔹 Validate user existence
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+
+        // 🔹 Create and initialize a new order
+        Order order = new Order();
+        order.setUser(user);
+        order.setOrderDate(LocalDateTime.now());
+        order.setStatus(Status.PENDING);
+        order.setTotalAmount(totalAmount);
+
+        // 🔹 Create order items list
+        List<OrderItem> orderItems = new ArrayList<>();
+        List<OrderItemDto> orderItemDtos = new ArrayList<>();
+
+        for (Map.Entry<Long, Integer> entry : productQuantities.entrySet()) {
+            Long productId = entry.getKey();
+            Integer quantity = entry.getValue();
+
+            Product product = productRepository.findById(productId)
+                    .orElseThrow(() -> new RuntimeException("Product not found with ID: " + productId));
+
+            OrderItem item = new OrderItem();
+            item.setOrder(order);
+            item.setProduct(product);
+            item.setQuantity(quantity);
+
+            orderItems.add(item);
+            orderItemDtos.add(new OrderItemDto(product.getName(), product.getPrice(), quantity));
+        }
+
+        order.setOrderItems(orderItems);
+
+        // 🔹 Save order in the database
+        Order savedOrder = orderRepository.save(order);
+        log.info("Order placed successfully with ID: {}", savedOrder.getId());
+
+        // 🔹 Return response DTO
+        return new OrderDto(
+                savedOrder.getId(),
+                savedOrder.getTotalAmount(),
+                savedOrder.getOrderDate(),
+                orderItemDtos
+        );
+    }
+
+    /**
+     * Fetches all orders with associated user details.
+     */
+    @Override
+    public List<OrderDto> getAllOrders() {
+        log.info("Fetching all orders with user details...");
+
+        // ✅ Use updated method name in repository
+        List<Order> orders = orderRepository.findAllWithUser();
+
+        return orders.stream()
+                .map(order -> {
+                    OrderDto dto = modelMapper.map(order, OrderDto.class);
+                    dto.setUserName(order.getUser().getName());
+                    dto.setEmail(order.getUser().getEmail());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Fetches all orders placed by a specific user.
+     */
+    @Override
+    public List<OrderDto> getOrderByUserId(Long userId) {
+        log.info("Fetching all orders for user ID: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+
+        List<Order> userOrders = orderRepository.findByUser(user);
+
+        return userOrders.stream()
+                .map(order -> {
+                    OrderDto dto = modelMapper.map(order, OrderDto.class);
+                    dto.setUserName(user.getName());
+                    dto.setEmail(user.getEmail());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+}

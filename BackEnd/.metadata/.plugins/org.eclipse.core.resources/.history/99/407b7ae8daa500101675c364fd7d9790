@@ -1,0 +1,81 @@
+package com.chandu.ServiceImpl;
+
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
+import com.chandu.Entity.User;
+import com.chandu.Repository.UserRepository;
+import com.chandu.Service.UserService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * Implementation of the {@link UserService} interface.
+ * Handles user registration, authentication, and retrieval.
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class UserServiceImpl implements UserService {
+
+    private final UserRepository userRepository;
+
+    /**
+     * Registers a new user into the system.
+     *
+     * @param user the {@link User} object containing registration details
+     * @return the registered {@link User}
+     * @throws RuntimeException if the email is already in use
+     */
+    @Override
+    public User registerUser(User user) {
+        log.info("Attempting to register new user: {}", user.getEmail());
+
+        // ✅ Check if the email already exists
+        if (userRepository.findByEmail(user.getEmail()) != null) {
+            throw new RuntimeException("Email already registered: " + user.getEmail());
+        }
+
+        User savedUser = userRepository.save(user);
+        log.info("User registered successfully with ID: {}", savedUser.getId());
+        return savedUser;
+    }
+
+    /**
+     * Authenticates a user using their email and password.
+     *
+     * @param email the user's email address
+     * @param password the user's password
+     * @return the authenticated {@link User}
+     * @throws RuntimeException if credentials are invalid
+     */
+    @Override
+    public User loginUser(String email, String password) {
+        log.info("Attempting login for user: {}", email);
+
+        User user = userRepository.findByEmail(email);
+        if (user == null) {
+            throw new RuntimeException("No user found with email: " + email);
+        }
+
+        if (!user.getPassword().equals(password)) {
+            throw new RuntimeException("Invalid credentials for email: " + email);
+        }
+
+        log.info("User login successful: {}", email);
+        return user;
+    }
+
+    /**
+     * Retrieves all registered users.
+     *
+     * @return a list of all {@link User} entities
+     */
+    @Override
+    public List<User> getAllUsers() {
+        log.info("Fetching all registered users...");
+        return userRepository.findAll();
+    }
+}

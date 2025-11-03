@@ -1,0 +1,37 @@
+package com.chandu.DTO;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * Data Transfer Object (DTO) representing a single item in an order.
+ * This is used to send simplified item data to the frontend.
+ */
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class OrderItemDto {
+
+    public OrderItemDto(Long productId, String productName, Double price, Integer quantity) {
+		this.productId = productId;
+		this.productName = productName;
+		this.price = price;
+		this.quantity = quantity;
+	}
+
+	/** Unique identifier of the product */
+    private Long productId;
+
+    /** Name of the product */
+    private String productName;
+
+    /** Price of the product at the time of purchase */
+    private Double price;
+
+    /** Quantity of this product ordered */
+    private Integer quantity;
+
+    /** Image of the product (optional, for frontend display) */
+    private String productImage; // ✅ added for UI rendering
+}

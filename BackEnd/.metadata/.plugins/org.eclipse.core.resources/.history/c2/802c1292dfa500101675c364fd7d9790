@@ -1,0 +1,109 @@
+package com.chandu.Controller;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import com.chandu.DTO.PaymentRequest;
+import com.chandu.DTO.PaymentResponse;
+import com.chandu.DTO.PaymentVerificationRequest;
+import com.chandu.Service.PaymentService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * REST controller for handling payment operations.
+ * Supports creating Razorpay orders, verifying payments, fetching status, and processing refunds.
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/payments")
+@CrossOrigin("*")
+@RequiredArgsConstructor
+public class PaymentController {
+
+    private final PaymentService paymentService;
+
+    /**
+     * ✅ Creates a new Razorpay payment order.
+     *
+     * @param paymentRequest Payment details from frontend (amount, currency, orderId, etc.)
+     * @return {@link PaymentResponse} containing Razorpay order info
+     */
+    @PostMapping("/create-order")
+    public ResponseEntity<PaymentResponse> createPaymentOrder(@RequestBody PaymentRequest paymentRequest) {
+        log.info("🪙 Creating payment order for Order ID: {}", paymentRequest.getOrderId());
+        try {
+            PaymentResponse response = paymentService.createPaymentOrder(paymentRequest);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("❌ Error creating payment order: {}", e.getMessage());
+            return ResponseEntity
+                    .badRequest()
+                    .body(PaymentResponse.error("Payment creation failed: " + e.getMessage(), paymentRequest.getAmount()));
+        }
+    }
+
+    /**
+     * ✅ Verifies Razorpay payment after transaction completion.
+     *
+     * @param verificationRequest Razorpay orderId, paymentId, and signature for validation
+     * @return {@link PaymentResponse} with verification result
+     */
+    @PostMapping("/verify")
+    public ResponseEntity<PaymentResponse> verifyPayment(@RequestBody PaymentVerificationRequest verificationRequest) {
+        log.info("🔍 Verifying payment for Razorpay Order ID: {}", verificationRequest.getRazorpayOrderId());
+        try {
+            PaymentResponse response = paymentService.verifyPayment(verificationRequest);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("❌ Payment verification failed: {}", e.getMessage());
+            return ResponseEntity
+                    .badRequest()
+                    .body(PaymentResponse.error(
+                            "Verification failed: " + e.getMessage(),
+                            null));
+        }
+    }
+
+    /**
+     * ✅ Retrieves the payment status using internal or Razorpay payment ID.
+     *
+     * @param paymentId Payment ID (internal or Razorpay)
+     * @return {@link PaymentResponse} containing current payment status
+     */
+    @GetMapping("/status/{paymentId}")
+    public ResponseEntity<PaymentResponse> getPaymentStatus(@PathVariable String paymentId) {
+        log.info("📄 Fetching payment status for Payment ID: {}", paymentId);
+        try {
+            PaymentResponse response = paymentService.getPaymentStatus(paymentId);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("❌ Error fetching payment status: {}", e.getMessage());
+            return ResponseEntity
+                    .badRequest()
+                    .body(PaymentResponse.error("Failed to fetch payment status: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * ✅ Initiates a refund for a specific payment.
+     *
+     * @param paymentId Razorpay Payment ID
+     * @param amount    Amount to refund
+     * @return Success or failure message
+     */
+    @PostMapping("/refund/{paymentId}")
+    public ResponseEntity<String> refundPayment(@PathVariable String paymentId, @RequestParam Double amount) {
+        log.info("💸 Initiating refund for Payment ID: {}, Amount: {}", paymentId, amount);
+        try {
+            boolean success = paymentService.refundPayment(paymentId, amount);
+            return success
+                    ? ResponseEntity.ok("✅ Refund processed successfully for Payment ID: " + paymentId)
+                    : ResponseEntity.badRequest().body("❌ Refund failed for Payment ID: " + paymentId);
+        } catch (Exception e) {
+            log.error("❌ Refund process error: {}", e.getMessage());
+            return ResponseEntity.badRequest().body("Refund failed: " + e.getMessage());
+        }
+    }
+}

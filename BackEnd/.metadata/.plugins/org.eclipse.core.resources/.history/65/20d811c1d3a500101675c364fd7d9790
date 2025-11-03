@@ -1,0 +1,60 @@
+package com.chandu.Service;
+
+import java.util.List;
+import java.util.Map;
+
+import com.chandu.DTO.OrderDto;
+import com.chandu.Entity.Orders;
+// Remove this wrong import: import ch.qos.logback.core.status.Status;
+import com.chandu.Entity.Status; // ✅ Correct import
+
+/**
+ * Service interface for handling order-related operations.
+ */
+public interface OrderService {
+
+	/**
+	 * Places a new order for a given user.
+	 *
+	 * @param userId            the ID of the user placing the order
+	 * @param productQuantities a map of product IDs and their respective quantities
+	 * @param totalAmount       the total price of all ordered items
+	 * @return the details of the placed order as an OrderDto
+	 */
+	OrderDto placeOrder(Long userId, Map<Long, Integer> productQuantities, Double totalAmount);
+
+	/**
+	 * Retrieves all orders across all users.
+	 *
+	 * @return a list of all orders in the system
+	 */
+	List<OrderDto> getAllOrders();
+
+	/**
+	 * Retrieves all orders placed by a specific user.
+	 *
+	 * @param userId the ID of the user whose orders are to be fetched
+	 * @return a list of OrderDto objects for that user
+	 */
+	List<OrderDto> getOrderByUserId(Long userId);
+
+	List<Orders> findByOrderStatus(Status status); // ✅ Fixed import
+
+	OrderDto updateOrderStatus(Long orderId, String status);
+
+	/**
+	 * Cancels an order and updates its status to CANCELLED.
+	 *
+	 * @param orderId the ID of the order to cancel
+	 * @return confirmation message or updated order details
+	 */
+	OrderDto cancelOrder(Long orderId);
+
+	/**
+	 * Retrieves recent orders placed in the last X days.
+	 *
+	 * @param days number of recent days to filter orders
+	 * @return list of recent orders
+	 */
+	List<OrderDto> getRecentOrders(int days);
+}

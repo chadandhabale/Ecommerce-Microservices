@@ -1,0 +1,40 @@
+package com.example.paymentGateway.Entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.math.BigDecimal;
+
+@Entity
+@Table(name = "products")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@ToString
+public class Product {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id; // changed from productId → id for standard JPA naming
+
+    @Column(nullable = false, unique = true, length = 150)
+    private String name;
+
+    @Column(length = 1000)
+    private String description;
+
+    @Column(length = 100)
+    private String category;
+
+    @Column(nullable = false)
+    private BigDecimal price; // changed Double → BigDecimal (more accurate for money)
+
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
+
+    @Column(nullable = false)
+    private Boolean available = true;
+
+    @Column(nullable = false)
+    private Integer stock = 0; // added stock field for order validation
+}

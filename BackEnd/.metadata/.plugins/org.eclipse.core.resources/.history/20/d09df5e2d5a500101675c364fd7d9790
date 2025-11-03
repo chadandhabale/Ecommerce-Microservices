@@ -1,0 +1,55 @@
+package com.chandu.DTO;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
+/**
+ * Data Transfer Object (DTO) for transferring order details safely between layers.
+ * This avoids exposing entity relationships directly to the frontend.
+ */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
+public class OrderDto {
+
+    /** Unique ID of the order */
+    private Long id;
+
+    /** Total payable amount for the order */
+    private Double totalAmount;
+
+    /** Date and time when the order was created */
+    private LocalDateTime orderDate;
+
+    /** Order status (PENDING, PAID, SHIPPED, etc.) */
+    private String status;  // ✅ Added for frontend tracking
+
+    /** Customer (user) name */
+    private String userName;
+
+    /** Customer email */
+    private String email;
+
+    /** List of items included in the order */
+    private List<OrderItemDto> orderItems;
+
+    /** Razorpay payment ID (optional, for payment tracking) */
+    private String paymentId; // ✅ New field to pass payment details safely
+
+    /** Secondary constructor (when user & payment details not needed) */
+    public OrderDto(Long id, Double totalAmount, LocalDateTime orderDate, String status, List<OrderItemDto> orderItems) {
+        this.id = id;
+        this.totalAmount = totalAmount;
+        this.orderDate = orderDate;
+        this.status = status;
+        this.orderItems = orderItems;
+    }
+}

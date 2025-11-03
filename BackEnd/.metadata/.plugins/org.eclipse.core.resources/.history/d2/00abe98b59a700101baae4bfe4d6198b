@@ -1,0 +1,62 @@
+package com.chandu.DTO;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
+/**
+ * DTO representing a payment initiation request.
+ * Sent from frontend during Razorpay checkout creation.
+ * 
+ * Example JSON:
+ * {
+ *   "orderId": 101,
+ *   "amount": 999.99,
+ *   "currency": "INR",
+ *   "receipt": "rcpt_123456",
+ *   "paymentMethod": "UPI",
+ *   "email": "user@example.com",
+ *   "contact": "9876543210"
+ * }
+ */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
+public class PaymentRequest {
+
+    /** The ID of the order this payment belongs to */
+    @NotNull(message = "Order ID is required")
+    private Long orderId;
+
+    /** Amount to be charged (in INR, before conversion to paise for Razorpay) */
+    @NotNull(message = "Amount is required")
+    @Positive(message = "Amount must be greater than zero")
+    private Double amount;
+
+    /** ISO currency code (Razorpay supports INR, USD, etc.) */
+    @NotBlank(message = "Currency is required")
+    private String currency = "INR"; // ✅ default to INR
+
+    /** Optional receipt number for your internal tracking */
+    private String receipt;
+
+    /** Payment method (CARD, UPI, NETBANKING, WALLET, etc.) */
+    private String paymentMethod;
+
+    /** Customer’s email address (used by Razorpay for invoice and confirmation) */
+    @Email(message = "Invalid email format")
+    private String email;
+
+    /** Customer’s phone number */
+    @Pattern(regexp = "^[0-9]{10}$", message = "Contact must be a 10-digit number")
+    private String contact;
+}

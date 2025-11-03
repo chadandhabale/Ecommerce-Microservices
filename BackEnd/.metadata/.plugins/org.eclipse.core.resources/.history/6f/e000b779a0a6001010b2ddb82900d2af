@@ -1,0 +1,32 @@
+package com.chandu.DTO;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * Data Transfer Object for transferring order details between layers.
+ */
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class OrderDto {
+
+	private Long id; // Order ID
+	private Double totalAmount; // Total order cost
+	private LocalDateTime orderDate; // Date when order was placed
+	private String userName; // Customer name
+	private String email; // Customer email
+	private String status; // Order status (e.g., PENDING, SHIPPED)
+	private List<OrderItemDto> orderItems; // List of ordered items
+
+	// ✅ Secondary constructor to match OrderServiceImpl
+	public OrderDto(Long id, Double totalAmount, LocalDateTime orderDate, List<OrderItemDto> orderItems) {
+		this.id = id;
+		this.totalAmount = totalAmount;
+		this.orderDate = orderDate;
+		this.orderItems = orderItems;
+	}
+}

@@ -1,0 +1,22 @@
+package com.example.paymentGateway.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import com.example.paymentGateway.Entity.User;
+
+@Repository
+public interface UserRepository extends JpaRepository<User, Long> {
+
+    // Find a user by their unique email
+    Optional<User> findByEmail(String email);
+
+    // Check if an email already exists (useful for registration)
+    boolean existsByEmail(String email);
+
+    // Search users by name (case-insensitive)
+    List<User> findByNameContainingIgnoreCase(String name);
+}

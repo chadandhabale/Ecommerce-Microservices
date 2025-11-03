@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="MavenProjectImportWizardPage">
+		<list key="rootDirectory">
+			<item value="C:\java full stack\myProject\Payment_GateWay"/>
+			<item value="C:\java full stack\myProject\Ecomms_fixed\E_comms"/>
+			<item value="C:\java full stack\myProject\Ecomms\Ecomms\Ecomms"/>
+			<item value="C:\java full stack\New folder\Ecomms_fixed\E_comms"/>
+			<item value="C:\java full stack\myProject\Ecomms_fixed"/>
+			<item value="C:\java full stack\New folder\Ecomms"/>
+			<item value="C:\java full stack\myProject\Ecomms1"/>
+			<item value="C:\java full stack\myProject\Ecomms_fixed\Ecomms"/>
+		</list>
+		<list key="projectNameTemplate">
+			<item value="[artifactId]"/>
+			<item value="[artifactId]-TRUNK"/>
+			<item value="[artifactId]-[version]"/>
+			<item value="[groupId].[artifactId]"/>
+			<item value="[groupId].[artifactId]-[version]"/>
+			<item value="[name]"/>
+		</list>
+	</section>
+	<section name="org.eclipse.m2e.core.pom.overview">
+	</section>
+	<section name="org.eclipse.m2e.core.pom.dependencies">
+	</section>
+</section>

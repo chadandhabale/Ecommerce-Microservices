@@ -1,0 +1,31 @@
+package com.example.paymentGateway.DTO;
+
+import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class PaymentRequestDTO {
+    
+    @NotNull(message = "Amount is required")
+    @DecimalMin(value = "1.0", message = "Amount must be at least 1")
+    private Double amount;
+    
+    @NotNull(message = "User ID is required")
+    private Long userId;
+    
+    @NotNull(message = "Order ID is required")
+    private Long orderId;
+    
+    @Email(message = "Invalid email format")
+    private String customerEmail;
+    
+    private String customerName;
+    
+    private String description;
+    
+    private String currency = "INR"; // Default to INR
+}

@@ -1,0 +1,54 @@
+package com.chandu.Service;
+
+import java.util.List;
+import java.util.Optional;
+
+import com.chandu.Entity.User;
+
+/**
+ * Service interface for managing users, authentication, and user-related
+ * operations in the system.
+ */
+public interface UserService {
+
+	/**
+	 * Registers a new user in the system.
+	 *
+	 * @param user the user details to register
+	 * @return the newly registered user
+	 * @throws IllegalArgumentException if a user with the same email already exists
+	 */
+	User registerUser(User user);
+
+	/**
+	 * Authenticates a user based on email and password.
+	 *
+	 * @param email    the user's email address
+	 * @param password the user's password
+	 * @return the authenticated user if credentials are valid
+	 * @throws RuntimeException if credentials are invalid
+	 */
+	User loginUser(String email, String password);
+
+	/**
+	 * Retrieves all users from the system.
+	 *
+	 * @return a list of all registered users
+	 */
+	List<User> getAllUsers();
+
+	/**
+	 * Finds a user by their unique email address.
+	 *
+	 * @param email the user's email
+	 * @return Optional containing the user if found
+	 */
+	Optional<User> findByEmail(String email);
+
+	/**
+	 * Deletes a user by their ID.
+	 *
+	 * @param userId the ID of the user to delete
+	 */
+	void deleteUser(Long userId);
+}

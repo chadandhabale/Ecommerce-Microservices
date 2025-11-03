@@ -1,0 +1,16 @@
+package com.example.paymentGateway.DTO;
+
+import java.math.BigDecimal;
+import lombok.*;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class OrderItemDTO {
+
+    private Long productId;       // to identify the product uniquely
+    private String productName;
+    private BigDecimal price;     // renamed from productPrice → price (consistent with Product entity)
+    private Integer quantity;
+}

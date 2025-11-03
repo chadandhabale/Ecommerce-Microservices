@@ -1,0 +1,5 @@
+package com.chandu.Config;
+
+public class GlobalCorsConfig {
+
+}

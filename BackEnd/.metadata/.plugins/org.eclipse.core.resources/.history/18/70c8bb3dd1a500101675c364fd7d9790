@@ -1,0 +1,35 @@
+package com.chandu.Repository;
+
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import com.chandu.Entity.Product;
+
+/**
+ * Repository interface for managing {@link Product} entities.
+ * <p>
+ * Extends {@link JpaRepository} to provide built-in CRUD operations and
+ * additional custom queries for searching and filtering products.
+ * </p>
+ */
+@Repository
+public interface ProductRepository extends JpaRepository<Product, Long> {
+
+    /**
+     * Retrieves all products that belong to the specified category.
+     *
+     * @param category the category name to filter products by
+     * @return a list of products in the given category
+     */
+    List<Product> findByCategory(String category);
+
+    /**
+     * Searches for products whose names contain the specified keyword (case-insensitive).
+     *
+     * @param keyword the search term to look for in product names
+     * @return a list of products with names containing the keyword
+     */
+    List<Product> findByNameContainingIgnoreCase(String keyword);
+}

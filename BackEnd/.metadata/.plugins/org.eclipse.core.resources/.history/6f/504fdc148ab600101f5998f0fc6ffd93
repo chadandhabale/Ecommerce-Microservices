@@ -1,0 +1,61 @@
+# ============================================================
+# 🌐 Application Configuration
+# ============================================================
+spring.application.name=API-GATEWAY
+server.port=333
+
+# ============================================================
+# 🔐 Eureka Client Configuration
+# ============================================================
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka/
+eureka.instance.instance-id=${spring.application.name}:${spring.application.instance_id:${random.value}}
+eureka.instance.prefer-ip-address=true
+
+# ============================================================
+# 🔧 Gateway Configuration
+# ============================================================
+spring.main.web-application-type=reactive
+spring.cloud.gateway.discovery.locator.enabled=true
+spring.cloud.gateway.discovery.locator.lower-case-service-id=true
+
+# ============================================================
+# 🛣️ Gateway Routes Configuration
+# ============================================================
+
+# ECOMMERCE-SERVICE Routes (Note: Uses the exact Eureka service name)
+spring.cloud.gateway.routes[0].id=user-service
+spring.cloud.gateway.routes[0].uri=lb://ECOMMERCE-SERVICE
+spring.cloud.gateway.routes[0].predicates[0]=Path=/api/users/**
+
+spring.cloud.gateway.routes[1].id=product-service
+spring.cloud.gateway.routes[1].uri=lb://ECOMMERCE-SERVICE
+spring.cloud.gateway.routes[1].predicates[0]=Path=/api/products/**
+
+spring.cloud.gateway.routes[2].id=order-service
+spring.cloud.gateway.routes[2].uri=lb://ECOMMERCE-SERVICE
+spring.cloud.gateway.routes[2].predicates[0]=Path=/api/orders/**
+
+# PaymentService Routes (Note: Uses the exact Eureka service name)
+spring.cloud.gateway.routes[3].id=payment-service
+spring.cloud.gateway.routes[3].uri=lb://PaymentService
+spring.cloud.gateway.routes[3].predicates[0]=Path=/api/payments/**
+
+# ============================================================
+# 📊 Spring Boot Admin Client Configuration
+# ============================================================
+spring.boot.admin.client.url=http://localhost:1111
+spring.boot.admin.client.instance.service-base-url=http://localhost:${server.port}
+spring.boot.admin.client.instance.management-base-url=http://localhost:${server.port}
+spring.boot.admin.client.instance.name=${spring.application.name}
+
+# ============================================================
+# 🔧 Management Endpoints
+# ============================================================
+management.endpoints.web.exposure.include=health,info,metrics
+management.endpoint.health.show-details=always
+
+# ============================================================
+# 📊 Logging Configuration
+# ============================================================
+logging.level.org.springframework.cloud.gateway=DEBUG
+logging.level.org.springframework.web=INFO

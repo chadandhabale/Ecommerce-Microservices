@@ -1,0 +1,10 @@
+package com.chandu.Service;
+
+import com.chandu.Entity.Order;
+
+public interface EmailService {
+    void sendOrderConfirmationEmail(String toEmail, Order order);
+    void sendPaymentSuccessEmail(String toEmail, Order order);
+    void sendShippingUpdateEmail(String toEmail, Order order);
+    void sendPasswordResetEmail(String toEmail, String resetToken);
+}

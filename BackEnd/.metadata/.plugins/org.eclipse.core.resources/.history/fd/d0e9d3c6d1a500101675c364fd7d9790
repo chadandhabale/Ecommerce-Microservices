@@ -1,0 +1,18 @@
+package com.chandu.Service;
+
+import org.json.JSONObject;
+// Remove this: import org.springframework.stereotype.Repository;
+import org.springframework.stereotype.Service; // ✅ Use Service instead
+
+import com.chandu.DTO.PaymentRequest;
+import com.chandu.DTO.PaymentResponse;
+import com.chandu.DTO.PaymentVerificationRequest;
+
+@Service // ✅ Correct annotation
+public interface PaymentService {
+    PaymentResponse createPaymentOrder(PaymentRequest paymentRequest);
+    PaymentResponse verifyPayment(PaymentVerificationRequest verificationRequest);
+    PaymentResponse getPaymentStatus(String paymentId);
+    boolean refundPayment(String paymentId, Double amount);
+    JSONObject createRazorpayOrder(Double amount, String currency, String receipt) throws Exception;
+}

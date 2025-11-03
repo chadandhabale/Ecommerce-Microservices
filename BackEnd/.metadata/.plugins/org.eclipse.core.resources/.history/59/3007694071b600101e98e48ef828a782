@@ -1,0 +1,20 @@
+package com.example.paymentGateway.Service;
+
+import java.util.Map;
+import com.example.paymentGateway.DTO.PaymentResponse;
+import com.example.paymentGateway.Entity.Payment;
+
+public interface PaymentService {
+
+    // ✅ Creates a new Razorpay order and returns payment details
+    PaymentResponse createPaymentOrder(Map<String, Object> data);
+
+    // ✅ Verifies payment signature and sends email if valid
+    boolean verifyPaymentSignature(Map<String, String> details);
+
+    // ✅ Updates payment status (and triggers email if SUCCESS)
+    Payment updatePaymentStatus(String razorpayOrderId, String status, String email);
+
+    // ✅ Fetch payment details by Razorpay Order ID
+    Payment getPaymentByOrderId(String razorpayOrderId);
+}

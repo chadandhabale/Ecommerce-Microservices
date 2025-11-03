@@ -1,0 +1,100 @@
+package com.chandu.ServiceImpl;
+
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
+import com.chandu.Entity.Product;
+import com.chandu.Repository.ProductRepository;
+import com.chandu.Service.ProductService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * Implementation of the {@link ProductService} interface.
+ * Handles business logic for managing products.
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class ProductServiceImpl implements ProductService {
+
+    private final ProductRepository productRepository;
+
+    @Override
+    public List<Product> getAllProducts() {
+        log.info("Fetching all products...");
+        return productRepository.findAll();
+    }
+
+    @Override
+    public Product findProductById(Long productId) {
+        log.info("Fetching product with ID: {}", productId);
+        return productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with ID: " + productId));
+    }
+
+    @Override
+    public Product addProduct(Product product) {
+        log.info("Adding new product: {}", product.getName());
+        return productRepository.save(product);
+    }
+
+    @Override
+    public void deleteProduct(Long productId) {
+        log.info("Deleting product with ID: {}", productId);
+
+        if (!productRepository.existsById(productId)) {
+            throw new RuntimeException("Cannot delete. Product not found with ID: " + productId);
+        }
+
+        productRepository.deleteById(productId);
+        log.info("Product with ID {} deleted successfully.", productId);
+    }
+
+    @Override
+    public List<Product> getProductsByCategory(String category) {
+        log.info("Fetching products by category: {}", category);
+        List<Product> products = productRepository.findByCategory(category);
+
+        if (products.isEmpty()) {
+            log.warn("No products found in category: {}", category);
+            throw new RuntimeException("No products found in category: " + category);
+        }
+
+        return products;
+    }
+
+    @Override
+    public List<Product> searchProducts(String keyword) {
+        log.info("Searching products with keyword: {}", keyword);
+        List<Product> products = productRepository.findByNameContainingIgnoreCase(keyword);
+
+        if (products.isEmpty()) {
+            log.warn("No products found for keyword: {}", keyword);
+            throw new RuntimeException("No products found for keyword: " + keyword);
+        }
+
+        return products;
+    }
+
+    @Override
+    public Product updateProduct(Long productId, Product updatedProduct) {
+        log.info("Updating product with ID: {}", productId);
+
+        Product existingProduct = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with ID: " + productId));
+
+        existingProduct.setName(updatedProduct.getName());
+        existingProduct.setDescription(updatedProduct.getDescription());
+        existingProduct.setPrice(updatedProduct.getPrice());
+        existingProduct.setCategory(updatedProduct.getCategory());
+        existingProduct.setImageUrl(updatedProduct.getImageUrl());
+
+        Product savedProduct = productRepository.save(existingProduct);
+        log.info("Product with ID {} updated successfully.", savedProduct.getId());
+
+        return savedProduct;
+    }
+}

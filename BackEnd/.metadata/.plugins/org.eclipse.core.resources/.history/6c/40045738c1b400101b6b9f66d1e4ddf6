@@ -1,0 +1,26 @@
+package com.example.paymentGateway.Service;
+
+import java.util.List;
+import java.util.Map;
+
+import com.example.paymentGateway.DTO.OrderDTO;
+import com.example.paymentGateway.Entity.Orders;
+import com.example.paymentGateway.Entity.Status;
+
+public interface OrderService {
+
+    OrderDTO placeOrder(Long userId, Map<Long, Integer> productQuantities, Double totalAmount);
+
+    List<OrderDTO> getAllOrders();
+
+    List<OrderDTO> getOrdersByUserId(Long userId);
+
+    List<Orders> findByOrderStatus(Status status);
+
+    OrderDTO updateOrderStatus(Long orderId, String status);
+
+    OrderDTO cancelOrder(Long orderId);
+    
+    List<OrderDTO> getRecentOrders(int days);
+
+}

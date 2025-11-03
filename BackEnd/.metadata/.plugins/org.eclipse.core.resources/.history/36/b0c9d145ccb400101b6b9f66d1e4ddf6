@@ -1,0 +1,21 @@
+package com.example.ecoms.Client;
+
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.*;
+
+import com.example.ecoms.DTO.PaymentRequest;
+import com.example.ecoms.DTO.PaymentResponse;
+
+@FeignClient(name = "PaymentService") 
+public interface PaymentClient {
+
+    @PostMapping("/payments/create") 
+    PaymentResponse createPayment(@RequestBody PaymentRequest paymentRequest);
+
+    @PutMapping("/payments/update-status/{razorpayOrderId}") 
+    PaymentResponse updatePaymentStatus(
+            @PathVariable("razorpayOrderId") String razorpayOrderId,
+            @RequestParam("status") String status,
+            @RequestParam("email") String email
+    );
+}

@@ -1,0 +1,112 @@
+package com.example.ecoms.Controller;
+
+import java.util.List;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+
+import com.example.ecoms.DTO.OrderDTO;
+import com.example.ecoms.DTO.RequestOrderDTO;
+import com.example.ecoms.Entity.Orders;
+import com.example.ecoms.Entity.Status;
+import com.example.ecoms.Service.OrderService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@RestController
+@RequestMapping("/api/orders")
+@RequiredArgsConstructor
+public class OrderController {
+
+    private final OrderService orderService;
+
+    /**
+     * ✅ Place an order for a specific user
+     * Also triggers payment creation via Feign client.
+     */
+    @PostMapping("/place/{userId}")
+    public ResponseEntity<OrderDTO> placeOrder(
+            @PathVariable Long userId,
+            @RequestBody RequestOrderDTO orderRequest) {
+        try {
+            log.info("🛒 Placing order for user ID: {}", userId);
+            OrderDTO order = orderService.placeOrder(
+                    userId,
+                    orderRequest.getProductQuantities(),
+                    orderRequest.getTotalAmount().doubleValue());
+            log.info("✅ Order successfully placed for user {}", userId);
+            return ResponseEntity.status(HttpStatus.CREATED).body(order);
+        } catch (Exception e) {
+            log.error("❌ Failed to place order for user {}: {}", userId, e.getMessage());
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to place order. Reason: " + e.getMessage());
+        }
+    }
+
+    /**
+     * ✅ Get all orders
+     */
+    @GetMapping("/all")
+    public ResponseEntity<List<OrderDTO>> getAllOrders() {
+        log.info("📦 Fetching all orders");
+        return ResponseEntity.ok(orderService.getAllOrders());
+    }
+
+    /**
+     * ✅ Get all orders of a specific user
+     */
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<OrderDTO>> getOrdersByUser(@PathVariable Long userId) {
+        log.info("📦 Fetching orders for user ID: {}", userId);
+        return ResponseEntity.ok(orderService.getOrdersByUserId(userId));
+    }
+
+    /**
+     * ✅ Update the status of an order (like DELIVERED, CANCELLED, SHIPPED)
+     */
+    @PutMapping("/{orderId}/status/{status}")
+    public ResponseEntity<OrderDTO> updateOrderStatus(
+            @PathVariable Long orderId,
+            @PathVariable String status) {
+        try {
+            log.info("📝 Updating order {} status to {}", orderId, status);
+            return ResponseEntity.ok(orderService.updateOrderStatus(orderId, status.toUpperCase()));
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid order status: " + status);
+        } catch (Exception e) {
+            log.error("❌ Error updating order {}: {}", orderId, e.getMessage());
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+    }
+
+    /**
+     * ✅ Cancel an existing order
+     */
+    @PutMapping("/{orderId}/cancel")
+    public ResponseEntity<OrderDTO> cancelOrder(@PathVariable Long orderId) {
+        log.info("🚫 Cancelling order ID: {}", orderId);
+        return ResponseEntity.ok(orderService.cancelOrder(orderId));
+    }
+
+    /**
+     * ✅ Fetch recent orders placed within last 'X' days
+     */
+    @GetMapping("/recent/{days}")
+    public ResponseEntity<List<OrderDTO>> getRecentOrders(@PathVariable int days) {
+        log.info("📅 Fetching recent orders from last {} days", days);
+        return ResponseEntity.ok(orderService.getRecentOrders(days));
+    }
+
+    /**
+     * ✅ Get all orders by their status (e.g. PENDING, SHIPPED, DELIVERED)
+     */
+    @GetMapping("/status/{status}")
+    public ResponseEntity<List<Orders>> getOrdersByStatus(@PathVariable Status status) {
+        log.info("🔍 Fetching orders by status: {}", status);
+        return ResponseEntity.ok(orderService.findByOrderStatus(status));
+    }
+}

@@ -1,0 +1,140 @@
+package com.example.ecoms.ServiceImpl;
+
+import com.example.ecoms.DTO.ProductRequestDTO;
+import com.example.ecoms.DTO.ProductResponseDTO;
+import com.example.ecoms.Entity.Product;
+import com.example.ecoms.Repository.ProductRepository;
+import com.example.ecoms.Service.ProductService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class ProductServiceImpl implements ProductService {
+
+    private final ProductRepository productRepository;
+
+    // Convert Entity to Response DTO
+    private ProductResponseDTO convertToResponseDTO(Product product) {
+        return ProductResponseDTO.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .description(product.getDescription())
+                .category(product.getCategory())
+                .price(product.getPrice())
+                .imageUrl(product.getImageUrl())
+                .available(product.getAvailable())
+                .stock(product.getStock())
+                .build();
+    }
+
+    // Convert Request DTO to Entity
+    private Product convertToEntity(ProductRequestDTO productRequestDTO) {
+        return Product.builder()
+                .name(productRequestDTO.getName())
+                .description(productRequestDTO.getDescription())
+                .category(productRequestDTO.getCategory())
+                .price(productRequestDTO.getPrice())
+                .imageUrl(productRequestDTO.getImageUrl())
+                .available(productRequestDTO.getAvailable())
+                .stock(productRequestDTO.getStock())
+                .build();
+    }
+
+    @Override
+    public List<ProductResponseDTO> getAllProducts() {
+        log.info("Fetching all products...");
+        return productRepository.findAll()
+                .stream()
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public ProductResponseDTO findProductById(Long productId) {
+        log.info("Fetching product with ID: {}", productId);
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with ID: " + productId));
+        return convertToResponseDTO(product);
+    }
+
+    @Override
+    public ProductResponseDTO addProduct(ProductRequestDTO productRequestDTO) {
+        log.info("=== START addProduct ===");
+        log.info("Received DTO - Name: {}", productRequestDTO.getName());
+        log.info("Received DTO - ImageUrl: '{}'", productRequestDTO.getImageUrl());
+        log.info("Received DTO - All fields: {}", productRequestDTO.toString());
+        
+        Product product = convertToEntity(productRequestDTO);
+        log.info("Converted Entity - ImageUrl: '{}'", product.getImageUrl());
+        
+        Product savedProduct = productRepository.save(product);
+        log.info("Saved Entity - ID: {}, ImageUrl: '{}'", savedProduct.getId(), savedProduct.getImageUrl());
+        
+        ProductResponseDTO response = convertToResponseDTO(savedProduct);
+        log.info("Response DTO - ImageUrl: '{}'", response.getImageUrl());
+        log.info("=== END addProduct ===");
+        
+        return response;
+    }
+
+    @Override
+    public ProductResponseDTO updateProduct(Long productId, ProductRequestDTO productRequestDTO) {
+        log.info("Updating product with ID: {}", productId);
+
+        Product existingProduct = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with ID: " + productId));
+
+        // Update fields from DTO
+        existingProduct.setName(productRequestDTO.getName());
+        existingProduct.setDescription(productRequestDTO.getDescription());
+        existingProduct.setCategory(productRequestDTO.getCategory());
+        existingProduct.setPrice(productRequestDTO.getPrice());
+        existingProduct.setImageUrl(productRequestDTO.getImageUrl());
+        existingProduct.setAvailable(productRequestDTO.getAvailable());
+        existingProduct.setStock(productRequestDTO.getStock());
+
+        Product savedProduct = productRepository.save(existingProduct);
+        log.info("Product updated successfully: {}", savedProduct.getId());
+        return convertToResponseDTO(savedProduct);
+    }
+
+    @Override
+    public void deleteProduct(Long productId) {
+        log.info("Deleting product with ID: {}", productId);
+        if (!productRepository.existsById(productId)) {
+            throw new RuntimeException("Cannot delete. Product not found with ID: " + productId);
+        }
+        productRepository.deleteById(productId);
+        log.info("Product deleted successfully: {}", productId);
+    }
+
+    @Override
+    public List<ProductResponseDTO> getProductsByCategory(String category) {
+        log.info("Fetching products by category: {}", category);
+        List<Product> products = productRepository.findByCategoryIgnoreCase(category);
+        if (products.isEmpty()) {
+            throw new RuntimeException("No products found in category: " + category);
+        }
+        return products.stream()
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ProductResponseDTO> searchProducts(String keyword) {
+        log.info("Searching products with keyword: {}", keyword);
+        List<Product> products = productRepository.findByNameContainingIgnoreCase(keyword);
+        if (products.isEmpty()) {
+            throw new RuntimeException("No products found for keyword: " + keyword);
+        }
+        return products.stream()
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList());
+    }
+}

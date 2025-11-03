@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register | Shoplane</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+  <!-- Navigation Bar -->
+  <nav class="navbar navbar-expand-lg navbar-dark shadow-sm">
+    <div class="container">
+      <a class="navbar-brand fw-bold" href="index.html">SHOPLANE</a>
+      <div class="navbar-nav ms-auto">
+        <a class="nav-link" href="login.html">
+          <i class="fas fa-sign-in-alt"></i> Login
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="container-fluid">
+    <div class="row justify-content-center align-items-center min-vh-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+      <div class="col-md-6 col-lg-4">
+        <div class="auth-container">
+          <!-- Header -->
+          <div class="text-center mb-4">
+            <i class="fas fa-user-plus fa-3x text-primary mb-3"></i>
+            <h2 class="fw-bold">Create Account</h2>
+            <p class="text-muted">Join Shoplane and start shopping today!</p>
+          </div>
+
+          <!-- Registration Form -->
+          <form id="registerForm">
+            <div class="mb-3">
+              <label for="name" class="form-label">Full Name</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                <input type="text" id="name" class="form-control" placeholder="Enter your full name" required>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="email" class="form-label">Email Address</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                <input type="email" id="email" class="form-control" placeholder="Enter your email" required>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label for="password" class="form-label">Password</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                <input type="password" id="password" class="form-control" placeholder="Create a password" required>
+                <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('password')">
+                  <i class="fas fa-eye"></i>
+                </button>
+              </div>
+              <div class="form-text">Password must be at least 6 characters long.</div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-3 fw-bold">
+              <i class="fas fa-user-plus me-2"></i>Create Account
+            </button>
+
+            <!-- Loading Spinner -->
+            <div id="loadingSpinner" class="text-center mt-3" style="display: none;">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <p class="mt-2 text-muted">Creating your account...</p>
+            </div>
+          </form>
+
+          <!-- Success Message -->
+          <div id="successMessage" class="alert alert-success mt-3" style="display: none;">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong>Success!</strong> Account created successfully.
+          </div>
+
+          <!-- Error Message -->
+          <div id="errorMessage" class="alert alert-danger mt-3" style="display: none;">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <span id="errorText">Registration failed. Please try again.</span>
+          </div>
+
+          <!-- Login Redirect -->
+          <div class="text-center mt-4">
+            <p class="text-muted">
+              Already have an account? 
+              <a href="login.html" class="text-primary fw-bold text-decoration-none">
+                Sign In Here
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "http://localhost:333";
+
+    // Toggle password visibility
+    function togglePassword(fieldId) {
+      const passwordField = document.getElementById(fieldId);
+      const toggleIcon = passwordField.nextElementSibling.querySelector('i');
+      
+      if (passwordField.type === "password") {
+        passwordField.type = "text";
+        toggleIcon.classList.remove('fa-eye');
+        toggleIcon.classList.add('fa-eye-slash');
+      } else {
+        passwordField.type = "password";
+        toggleIcon.classList.remove('fa-eye-slash');
+        toggleIcon.classList.add('fa-eye');
+      }
+    }
+
+    // Handle form submission
+    document.getElementById("registerForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      // Basic validation
+      if (password.length < 6) {
+        showError("Password must be at least 6 characters long.");
+        return;
+      }
+
+      // Show loading state
+      showLoading(true);
+      hideMessages();
+
+      try {
+        const userData = {
+          name: name,
+          email: email,
+          password: password
+        };
+
+        const response = await fetch(`${API_BASE}/api/users/register`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(userData)
+        });
+
+        if (response.ok) {
+          const user = await response.json();
+          showSuccess();
+          
+          // Redirect to login after success
+          setTimeout(() => {
+            window.location.href = "login.html?message=registered";
+          }, 2000);
+          
+        } else {
+          const errorText = await response.text();
+          showError(errorText.includes("already") ? 
+            "This email is already registered. Please try logging in." : 
+            "Registration failed. Please try again."
+          );
+        }
+      } catch (error) {
+        console.error("Registration error:", error);
+        showError("Network error. Please check your connection and try again.");
+      } finally {
+        showLoading(false);
+      }
+    });
+
+    // UI Helper functions
+    function showLoading(show) {
+      document.getElementById("loadingSpinner").style.display = show ? "block" : "none";
+      document.querySelector('button[type="submit"]').disabled = show;
+    }
+
+    function showSuccess() {
+      document.getElementById("successMessage").style.display = "block";
+      document.getElementById("errorMessage").style.display = "none";
+    }
+
+    function showError(message) {
+      document.getElementById("errorText").textContent = message;
+      document.getElementById("errorMessage").style.display = "block";
+      document.getElementById("successMessage").style.display = "none";
+    }
+
+    function hideMessages() {
+      document.getElementById("successMessage").style.display = "none";
+      document.getElementById("errorMessage").style.display = "none";
+    }
+
+    // Check for success message from login redirect
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('message') === 'login_required') {
+      showError('Please login to access your account.');
+    }
+  </script>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

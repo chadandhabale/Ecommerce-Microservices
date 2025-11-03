@@ -1,0 +1,43 @@
+package com.chandu.Exception;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+/**
+ * Exception thrown when a user is not found in the system.
+ */
+@ResponseStatus(HttpStatus.NOT_FOUND)
+public class UserNotFoundException extends RuntimeException {
+    
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleUserNotFound(UserNotFoundException ex) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("timestamp", LocalDateTime.now());
+        response.put("status", HttpStatus.NOT_FOUND.value());
+        response.put("error", "Not Found");
+        response.put("message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+    public UserNotFoundException(String message) {
+        super(message);
+    }
+    
+    public UserNotFoundException(String message, Throwable cause) {
+        super(message, cause);
+    }
+    
+    public UserNotFoundException(Long userId) {
+        super("User not found with ID: " + userId);
+    }
+    
+    public UserNotFoundException(String field, String value) {
+        super("User not found with " + field + ": " + value);
+    }
+}

@@ -1,0 +1,41 @@
+spring.application.name=ApiGateway
+server.port=333
+spring.application.name=API-GATEWAY
+server.port=8080
+
+# ✅ Eureka Configuration
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka
+eureka.instance.prefer-ip-address=true
+
+# ✅ Enable dynamic discovery
+spring.cloud.gateway.discovery.locator.enabled=true
+spring.cloud.gateway.discovery.locator.lower-case-service-id=true
+
+# ==========================================================
+# 🧍‍♂️ USER CONTROLLER ROUTES (inside E_COMMERCE)
+# ==========================================================
+spring.cloud.gateway.routes[0].id=user-service
+spring.cloud.gateway.routes[0].uri=lb://E_COMMERCE
+spring.cloud.gateway.routes[0].predicates[0]=Path=/api/users/**
+
+# ==========================================================
+# 🛒 PRODUCT CONTROLLER ROUTES (inside E_COMMERCE)
+# ==========================================================
+spring.cloud.gateway.routes[1].id=product-service
+spring.cloud.gateway.routes[1].uri=lb://E_COMMERCE
+spring.cloud.gateway.routes[1].predicates[0]=Path=/api/products/**
+
+# ==========================================================
+# 📦 ORDER CONTROLLER ROUTES (inside E_COMMERCE)
+# ==========================================================
+spring.cloud.gateway.routes[2].id=order-service
+spring.cloud.gateway.routes[2].uri=lb://E_COMMERCE
+spring.cloud.gateway.routes[2].predicates[0]=Path=/api/orders/**
+
+# ==========================================================
+# 💳 PAYMENT CONTROLLER ROUTES (inside PAYMENT-SERVICE)
+# ==========================================================
+spring.cloud.gateway.routes[3].id=payment-service
+spring.cloud.gateway.routes[3].uri=lb://PAYMENT-SERVICE
+spring.cloud.gateway.routes[3].predicates[0]=Path=/api/payments/**
+

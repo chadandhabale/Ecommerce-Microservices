@@ -1,0 +1,153 @@
+package com.example.paymentGateway.ServiceImpl;
+
+import java.util.Map;
+import java.util.UUID;
+
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import com.example.paymentGateway.Entity.Payment;
+import com.example.paymentGateway.Entity.PaymentStatus;
+import com.example.paymentGateway.Repository.PaymentRepository;
+import com.example.paymentGateway.Service.EmailService;
+import com.example.paymentGateway.Service.PaymentService;
+import com.razorpay.Order;
+import com.razorpay.RazorpayClient;
+import com.razorpay.Utils;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class PaymentServiceImpl implements PaymentService {
+
+    private final PaymentRepository paymentRepository;
+    private final EmailService emailService;
+
+    @Value("${razorpay.key.id:}")
+    private String razorpayKeyId;
+
+    @Value("${razorpay.key.secret:}")
+    private String razorpayKeySecret;
+
+    @Value("${payment.mock:true}")
+    private boolean paymentMock;
+
+    @Override
+    public Payment createPaymentOrder(Map<String, Object> data) {
+        try {
+            log.info("💳 Creating Razorpay payment order: {}", data);
+
+            double amountDouble = ((Number) data.get("amount")).doubleValue();
+            RazorpayClient client = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
+
+            JSONObject orderRequest = new JSONObject();
+            orderRequest.put("amount", (int) (amountDouble * 100));
+            orderRequest.put("currency", "INR");
+            orderRequest.put("receipt", "txn_" + UUID.randomUUID());
+
+            Order order = client.orders.create(orderRequest);
+
+            Payment payment = Payment.builder()
+                    .razorpayOrderId(order.get("id"))
+                    .amount(amountDouble)
+                    .currency("INR")
+                    .status(PaymentStatus.PENDING)
+                    .userId(((Number) data.get("userId")).longValue())
+                    .orderId(((Number) data.get("orderId")).longValue())
+                    .build();
+
+            paymentRepository.save(payment);
+
+            // ✅ Return response with keyId for frontend
+            PaymentResponse response = new PaymentResponse();
+            response.setRazorpayOrderId(order.get("id"));
+            response.setAmount(amountDouble);
+            response.setCurrency("INR");
+            response.setStatus("PENDING");
+            response.setOrderId(payment.getOrderId());
+            response.setUserId(payment.getUserId());
+            response.setKeyId(razorpayKeyId); // 🟢 This fixes your error!
+
+            return response;
+
+        } catch (Exception e) {
+            log.error("❌ Error creating Razorpay order: {}", e.getMessage());
+            throw new RuntimeException("Payment creation failed", e);
+        }
+    }
+
+
+    @Override
+    public boolean verifyPaymentSignature(Map<String, String> details) {
+        try {
+            String orderId = details.get("razorpay_order_id");
+            String paymentId = details.get("razorpay_payment_id");
+            String signature = details.get("razorpay_signature");
+            String email = details.get("email");
+
+            JSONObject attributes = new JSONObject();
+            attributes.put("razorpay_order_id", orderId);
+            attributes.put("razorpay_payment_id", paymentId);
+            attributes.put("razorpay_signature", signature);
+
+            boolean isValid = Utils.verifyPaymentSignature(attributes, razorpayKeySecret);
+            log.info("🧾 Payment verification result: {}", isValid);
+
+            if (isValid) {
+                Payment payment = paymentRepository.findByRazorpayOrderId(orderId);
+                payment.setStatus(PaymentStatus.SUCCESS);
+                paymentRepository.save(payment);
+
+                // ✅ Send confirmation email dynamically
+                emailService.sendEmail(
+                        email,
+                        "Payment Successful - Order #" + payment.getOrderId(),
+                        String.format(
+                                "Dear Customer,\n\nYour payment of ₹%.2f for Order #%d was successful!\n\nThank you for shopping with us.\n\nBest Regards,\nEcomms Team",
+                                payment.getAmount(), payment.getOrderId())
+                );
+                log.info("📩 Payment success email sent to {}", email);
+            }
+
+            return isValid;
+        } catch (Exception e) {
+            log.error("❌ Payment verification failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
+    public Payment updatePaymentStatus(String razorpayOrderId, String status, String email) {
+        Payment payment = paymentRepository.findByRazorpayOrderId(razorpayOrderId);
+        if (payment == null) throw new RuntimeException("Payment not found: " + razorpayOrderId);
+
+        payment.setStatus(PaymentStatus.valueOf(status.toUpperCase()));
+        Payment updated = paymentRepository.save(payment);
+
+        // ✅ Send Email if Payment Successful
+        if (updated.getStatus() == PaymentStatus.SUCCESS) {
+            if (email == null || email.isBlank()) {
+                log.warn("⚠️ Email address not provided — skipping email notification for order {}", updated.getOrderId());
+            } else {
+                String subject = "Payment Successful - Order #" + updated.getOrderId();
+                String body = String.format(
+                        "Dear Customer,\n\nYour payment of ₹%.2f for Order #%d was successful!\n\nThank you for shopping with us.\n\nBest Regards,\nEcomms Team",
+                        updated.getAmount(), updated.getOrderId()
+                );
+                emailService.sendEmail(email, subject, body);
+                log.info("📩 Payment confirmation email sent to {}", email);
+            }
+        }
+
+        return updated;
+    }
+
+    @Override
+    public Payment getPaymentByOrderId(String razorpayOrderId) {
+        return paymentRepository.findByRazorpayOrderId(razorpayOrderId);
+    }
+}

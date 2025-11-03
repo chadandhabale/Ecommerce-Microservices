@@ -1,0 +1,5 @@
+package com.example.paymentGateway.Controller;
+
+public class PaymentVerificationDTO {
+
+}

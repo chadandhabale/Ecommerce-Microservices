@@ -1,0 +1,24 @@
+package com.chandu.DTO;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * Data Transfer Object representing a single item in an order.
+ */
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class OrderItemDto {
+	
+	private Long productId;
+	/** Name of the product */
+	private String productName;
+
+	/** Price of the product at the time of order */
+	private Double price;
+
+	/** Quantity of this product ordered */
+	private int quantity;
+}

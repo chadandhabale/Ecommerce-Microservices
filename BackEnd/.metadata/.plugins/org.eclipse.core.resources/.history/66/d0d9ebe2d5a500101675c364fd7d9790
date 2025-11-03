@@ -1,0 +1,193 @@
+package com.chandu.ServiceImpl;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.modelmapper.ModelMapper;
+import org.springframework.stereotype.Service;
+
+import com.chandu.DTO.OrderDto;
+import com.chandu.DTO.OrderItemDto;
+import com.chandu.Entity.OrderItem;
+import com.chandu.Entity.Orders;
+import com.chandu.Entity.Product;
+import com.chandu.Entity.Status;
+import com.chandu.Entity.User;
+import com.chandu.Repository.OrderRepository;
+import com.chandu.Repository.ProductRepository;
+import com.chandu.Repository.UserRepository;
+import com.chandu.Service.EmailService;
+import com.chandu.Service.OrderService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * Implementation of the {@link OrderService} interface.
+ * Handles all business logic related to placing, fetching, and updating orders.
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class OrderServiceImpl implements OrderService {
+
+    private final OrderRepository orderRepository;
+    private final ProductRepository productRepository;
+    private final UserRepository userRepository;
+    private final ModelMapper modelMapper;
+    private final EmailService emailService;
+
+    /**
+     * Places a new order for a given user with specified product quantities and total amount.
+     *
+     * @param userId the ID of the user placing the order
+     * @param productQuantities a map of product IDs and their ordered quantities
+     * @param totalAmount the total cost of the order
+     * @return an {@link OrderDto} representing the placed order
+     */
+    @Override
+    public OrderDto placeOrder(Long userId, Map<Long, Integer> productQuantities, Double totalAmount) {
+        log.info("Placing a new order for user ID: {}", userId);
+
+        // ✅ Validate user existence
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+
+        // ✅ Create and initialize new order
+        Orders order = new Orders();
+        order.setUser(user);
+        order.setOrderDate(LocalDateTime.now());
+        order.setStatus(Status.PENDING);
+        order.setTotalAmount(totalAmount);
+
+        // ✅ Create order item entities and corresponding DTOs
+        List<OrderItem> orderItems = new ArrayList<>();
+        List<OrderItemDto> orderItemDtos = new ArrayList<>();
+
+        for (Map.Entry<Long, Integer> entry : productQuantities.entrySet()) {
+            Long productId = entry.getKey();
+            Integer quantity = entry.getValue();
+
+            Product product = productRepository.findById(productId)
+                    .orElseThrow(() -> new RuntimeException("Product not found with ID: " + productId));
+
+            OrderItem item = new OrderItem();
+            item.setOrder(order);
+            item.setProduct(product);
+            item.setQuantity(quantity);
+            item.setPrice(product.getPrice());
+            item.setProductName(product.getName());
+            item.setProductImage(product.getImageUrl());
+
+            orderItems.add(item);
+
+            orderItemDtos.add(new OrderItemDto(
+                    product.getId(),
+                    product.getName(),
+                    product.getPrice(),
+                    quantity
+            ));
+        }
+
+        order.setOrderItems(orderItems);
+
+        // ✅ Save the order in the database
+        Orders savedOrder = orderRepository.save(order);
+        log.info("✅ Order placed successfully with ID: {}", savedOrder.getId());
+
+        // ✅ Send order confirmation email
+        emailService.sendOrderConfirmationEmail(user.getEmail(), savedOrder);
+
+        // ✅ Return an OrderDto response
+        return new OrderDto(
+                savedOrder.getId(),
+                savedOrder.getTotalAmount(),
+                savedOrder.getOrderDate(),
+                orderItemDtos
+        );
+    }
+
+    /**
+     * Retrieves all orders along with their associated user details.
+     *
+     * @return a list of {@link OrderDto} containing order and user information
+     */
+    @Override
+    public List<OrderDto> getAllOrders() {
+        log.info("Fetching all orders with associated user details...");
+
+        List<Orders> orders = orderRepository.findAllOrdersWithUser();
+
+        return orders.stream()
+                .map(order -> {
+                    OrderDto dto = modelMapper.map(order, OrderDto.class);
+                    dto.setUserName(order.getUser().getName());
+                    dto.setEmail(order.getUser().getEmail());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieves all orders placed by a specific user.
+     *
+     * @param userId the ID of the user
+     * @return a list of {@link OrderDto} containing the user’s orders
+     */
+    @Override
+    public List<OrderDto> getOrderByUserId(Long userId) {
+        log.info("Fetching all orders for user ID: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+
+        List<Orders> userOrders = orderRepository.findByUser(user);
+
+        return userOrders.stream()
+                .map(order -> {
+                    OrderDto dto = modelMapper.map(order, OrderDto.class);
+                    dto.setUserName(user.getName());
+                    dto.setEmail(user.getEmail());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Orders> findByOrderStatus(Status status) {
+        log.info("Fetching orders with status: {}", status);
+        return orderRepository.findByStatus(status);
+    }
+
+    @Override
+    public OrderDto updateOrderStatus(Long orderId, String status) {
+        log.info("Updating order {} status to: {}", orderId, status);
+
+        Orders order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+
+        try {
+            Status newStatus = Status.valueOf(status.toUpperCase());
+            order.setStatus(newStatus);
+            Orders updatedOrder = orderRepository.save(order);
+
+            // Send shipping update email if status is related to shipping
+            if (isShippingStatus(newStatus)) {
+                emailService.sendShippingUpdateEmail(order.getUser().getEmail(), order);
+            }
+
+            return modelMapper.map(updatedOrder, OrderDto.class);
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Invalid status: " + status);
+        }
+    }
+
+    private boolean isShippingStatus(Status status) {
+        return status == Status.SHIPPED
+                || status == Status.OUT_FOR_DELIVERY
+                || status == Status.DELIVERED;
+    }
+}

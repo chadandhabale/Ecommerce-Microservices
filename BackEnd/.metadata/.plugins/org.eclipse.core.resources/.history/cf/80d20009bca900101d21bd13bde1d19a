@@ -1,0 +1,5 @@
+package com.chandu.DTO;
+
+public class UserLoginRequest {
+
+}

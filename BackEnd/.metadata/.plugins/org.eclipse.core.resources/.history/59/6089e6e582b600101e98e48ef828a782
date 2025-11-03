@@ -1,0 +1,214 @@
+package com.example.ecoms.ServiceImpl;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.modelmapper.ModelMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.example.ecoms.Client.PaymentClient;
+import com.example.ecoms.DTO.OrderDTO;
+import com.example.ecoms.DTO.OrderItemDTO;
+import com.example.ecoms.DTO.PaymentRequest;
+import com.example.ecoms.DTO.PaymentResponse;
+import com.example.ecoms.Entity.OrderItem;
+import com.example.ecoms.Entity.Orders;
+import com.example.ecoms.Entity.Product;
+import com.example.ecoms.Entity.Status;
+import com.example.ecoms.Entity.User;
+import com.example.ecoms.Repository.OrderRepository;
+import com.example.ecoms.Repository.ProductRepository;
+import com.example.ecoms.Repository.UserRepository;
+import com.example.ecoms.Service.OrderService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class OrderServiceImpl implements OrderService {
+
+    private final OrderRepository orderRepository;
+    private final ProductRepository productRepository;
+    private final UserRepository userRepository;
+    private final ModelMapper modelMapper;
+    private final PaymentClient paymentClient; // ✅ Feign client for PaymentService
+
+    // =========================================
+    // 🟢 Helper Method to Convert Entity → DTO
+    // =========================================
+    private OrderDTO convertToDTO(Orders order) {
+        OrderDTO dto = new OrderDTO();
+        dto.setId(order.getId());
+        dto.setTotalAmount(order.getTotalAmount());
+        dto.setOrderDate(order.getOrderDate());
+        dto.setStatus(order.getStatus());
+        dto.setRazorpayKeyId(order.getRazorpayKeyId());
+        dto.setPaymentId(order.getPaymentId());
+        dto.setPaymentStatus(order.getPaymentStatus());
+
+        // ✅ Set user info
+        if (order.getUser() != null) {
+            dto.setUserName(order.getUser().getName());
+            dto.setEmail(order.getUser().getEmail());
+        }
+
+        // ✅ Set order items
+        if (order.getOrderItems() != null && !order.getOrderItems().isEmpty()) {
+            dto.setOrderItems(order.getOrderItems().stream()
+                    .map(item -> new OrderItemDTO(
+                            item.getProduct() != null ? item.getProduct().getId() : null,
+                            item.getProduct() != null ? item.getProduct().getName() : null,
+                            item.getPrice(),
+                            item.getQuantity()))
+                    .collect(Collectors.toList()));
+        }
+
+        return dto;
+    }
+
+    // =========================================
+    // 🟢 Place Order
+    // =========================================
+    @Override
+    public OrderDTO placeOrder(Long userId, Map<Long, Integer> productQuantities, Double totalAmount) {
+        try {
+            log.info("🛒 Placing order for user ID: {}", userId);
+
+            // 1️⃣ Validate user exists
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+
+            // 2️⃣ Create order entity
+            Orders order = new Orders();
+            order.setUser(user);
+            order.setOrderDate(LocalDateTime.now());
+            order.setStatus(Status.PENDING);
+            order.setTotalAmount(new java.math.BigDecimal(totalAmount));
+
+            // 3️⃣ Add order items
+            List<OrderItem> orderItems = productQuantities.entrySet().stream()
+                    .map(entry -> {
+                        Product product = productRepository.findById(entry.getKey())
+                                .orElseThrow(() -> new RuntimeException("Product not found with ID: " + entry.getKey()));
+
+                        OrderItem item = new OrderItem();
+                        item.setOrder(order);
+                        item.setProduct(product);
+                        item.setQuantity(entry.getValue());
+                        item.setPrice(product.getPrice());
+                        return item;
+                    })
+                    .collect(Collectors.toList());
+
+            order.setOrderItems(orderItems);
+            Orders savedOrder = orderRepository.save(order);
+            log.info("✅ Order saved successfully: {}", savedOrder.getId());
+
+            // 4️⃣ 🚀 CRITICAL: Call Payment Service via Feign Client
+            PaymentRequest paymentRequest = new PaymentRequest();
+            paymentRequest.setUserId(userId);
+            paymentRequest.setOrderId(savedOrder.getId());
+            paymentRequest.setAmount(totalAmount);
+            paymentRequest.setCustomerEmail(user.getEmail());
+            paymentRequest.setCustomerName(user.getName());
+            paymentRequest.setDescription("Payment for Order #" + savedOrder.getId());
+
+            log.info("📞 Calling Payment Service for order: {}", savedOrder.getId());
+            PaymentResponse paymentResponse = paymentClient.createPayment(paymentRequest);
+            log.info("💳 Payment created successfully: {}", paymentResponse.getRazorpayOrderId());
+
+            // 5️⃣ Update order with payment info
+            savedOrder.setPaymentId(paymentResponse.getRazorpayOrderId());
+            savedOrder.setPaymentStatus(paymentResponse.getStatus());
+            savedOrder.setRazorpayKeyId(paymentResponse.getKeyId());
+            orderRepository.save(savedOrder);
+
+            return convertToDTO(savedOrder);
+
+        } catch (Exception e) {
+            log.error("❌ Failed to place order: {}", e.getMessage(), e);
+            throw new RuntimeException("Order placement failed: " + e.getMessage());
+        }
+    }
+
+    // =========================================
+    // 🟢 Get Orders by User
+    // =========================================
+    @Override
+    public List<OrderDTO> getOrdersByUserId(Long userId) {
+        log.info("📦 Fetching orders for user ID: {}", userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+
+        return orderRepository.findByUser(user).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    // =========================================
+    // 🟢 Get Orders by Status
+    // =========================================
+    @Override
+    public List<OrderDTO> findByOrderStatus(Status status) {
+        log.info("🔍 Fetching orders by status: {}", status);
+        return orderRepository.findByStatus(status).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    // =========================================
+    // 🟢 Update Order Status
+    // =========================================
+    @Override
+    public OrderDTO updateOrderStatus(Long orderId, String status) {
+        log.info("📝 Updating order {} to status {}", orderId, status);
+        Orders order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+
+        try {
+            order.setStatus(Status.valueOf(status.toUpperCase()));
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Invalid order status: " + status);
+        }
+
+        Orders updatedOrder = orderRepository.save(order);
+        return convertToDTO(updatedOrder);
+    }
+
+    // =========================================
+    // 🟢 Cancel Order
+    // =========================================
+    @Override
+    public OrderDTO cancelOrder(Long orderId) {
+        log.info("🚫 Cancelling order with ID: {}", orderId);
+        Orders order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+
+        if (order.getStatus() == Status.DELIVERED || order.getStatus() == Status.CANCELLED) {
+            throw new RuntimeException("Order cannot be cancelled (status: " + order.getStatus() + ")");
+        }
+
+        order.setStatus(Status.CANCELLED);
+        Orders cancelledOrder = orderRepository.save(order);
+        return convertToDTO(cancelledOrder);
+    }
+
+    // =========================================
+    // 🟢 Get Recent Orders
+    // =========================================
+    @Override
+    public List<OrderDTO> getRecentOrders(int days) {
+        log.info("📅 Fetching recent orders placed in the last {} days", days);
+        LocalDateTime startDate = LocalDateTime.now().minusDays(days);
+
+        return orderRepository.findRecentOrders(startDate).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+}

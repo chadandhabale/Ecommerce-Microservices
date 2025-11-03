@@ -1,0 +1,39 @@
+package com.chandu.Controller;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.chandu.Entity.Order;
+import com.chandu.Repository.OrderRepository;
+import com.chandu.Service.EmailService;
+
+import lombok.RequiredArgsConstructor;
+
+@RestController
+@RequestMapping("/api/email")
+@CrossOrigin("*")
+@RequiredArgsConstructor
+public class EmailController {
+
+	private final EmailService emailService;
+	private final OrderRepository orderRepository;
+
+	/**
+	 * Test endpoint to send order confirmation email
+	 */
+	@PostMapping("/test-order-confirmation/{orderId}")
+	public ResponseEntity<String> testOrderConfirmationEmail(@PathVariable Long orderId) {
+		try {
+			Order order = orderRepository.findById(orderId).orElseThrow(() -> new RuntimeException("Order not found"));
+
+			emailService.sendOrderConfirmationEmail(order.getUser().getEmail(), order);
+			return ResponseEntity.ok("Order confirmation email sent successfully");
+		} catch (Exception e) {
+			return ResponseEntity.badRequest().body("Failed to send email: " + e.getMessage());
+		}
+	}
+}

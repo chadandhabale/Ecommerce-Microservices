@@ -1,0 +1,11 @@
+package com.example.paymentGateway.Entity;
+
+public enum Status {
+	PENDING, // Order created but not paid yet
+	PAID, // Payment completed
+	CONFIRMED, // Order confirmed by seller
+	OUT_FOR_DELIVERY, // Order is out for delivery
+	SHIPPED, // Order shipped from warehouse
+	DELIVERED, // Order delivered successfully
+	CANCELLED // Order cancelled by user/admin
+}

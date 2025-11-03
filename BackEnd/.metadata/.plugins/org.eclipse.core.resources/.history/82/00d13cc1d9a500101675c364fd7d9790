@@ -1,0 +1,9 @@
+package com.chandu.Entity;
+
+/**
+ * Represents the current status of an order in the system.
+ */
+public enum Status {
+
+	PENDING, PAID, SHIPPED, DELIVERED, CANCELLED, OUT_FOR_DELIVERY
+}

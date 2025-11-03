@@ -1,0 +1,21 @@
+package com.example.demo.Client;
+
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.*;
+
+import com.example.demo.DTO.PaymentRequest;
+import com.example.demo.DTO.PaymentResponse;
+
+@FeignClient(name = "PaymentService") // must match spring.application.name of Payment microservice
+public interface PaymentClient {
+
+    @PostMapping("/api/payments/create")
+    PaymentResponse createPayment(@RequestBody PaymentRequest paymentRequest);
+
+    @PutMapping("/api/payments/update-status/{razorpayOrderId}")
+    PaymentResponse updatePaymentStatus(
+            @PathVariable("razorpayOrderId") String razorpayOrderId,
+            @RequestParam("status") String status,
+            @RequestParam("email") String email
+    );
+}

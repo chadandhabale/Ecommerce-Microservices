@@ -1,0 +1,52 @@
+package com.chandu.Entity;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Table(name = "orders")
+public class Order {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // ✅ One User can have many Orders
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    @JsonBackReference
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private User user;
+
+    // ✅ Total price for all products in this order
+    @Column(name = "total_amount", nullable = false)
+    private Double totalAmount;
+
+    // ✅ Order status (PENDING, SHIPPED, DELIVERED, CANCELLED)
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Status orderStatus;
+
+    // ✅ List of all products/items within this order
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderItem> orderItems;
+
+    // ✅ Date and time when the order was placed
+    @Column(name = "order_date", nullable = false)
+    private LocalDateTime orderDate;
+
+	public void setStatus(Status pending) {
+		// TODO Auto-generated method stub
+		
+	}
+}

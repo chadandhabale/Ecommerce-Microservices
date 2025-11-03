@@ -1,0 +1,109 @@
+package com.chandu.Controller;
+
+import java.util.List;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import com.chandu.DTO.OrderDto;
+import com.chandu.DTO.OrderRequest;
+import com.chandu.Entity.Orders;
+import com.chandu.Entity.Status;
+import com.chandu.Service.OrderService;
+
+import lombok.RequiredArgsConstructor;
+
+/**
+ * REST controller for managing orders.
+ * Provides endpoints for placing, viewing, and managing user-specific orders.
+ */
+@RestController
+@RequestMapping("/api/orders")
+@CrossOrigin("*")
+@RequiredArgsConstructor
+public class OrderController {
+
+    private final OrderService orderService;
+
+    /**
+     * Places a new order for the specified user.
+     *
+     * @param userId        the ID of the user placing the order
+     * @param orderRequest  contains product quantities and total amount
+     * @return an {@link OrderDto} representing the placed order
+     */
+    @PostMapping("/place/{userId}")
+    public ResponseEntity<OrderDto> placeOrder(@PathVariable Long userId, @RequestBody OrderRequest orderRequest) {
+        OrderDto order = orderService.placeOrder(
+                userId,
+                orderRequest.getProductQuantities(),
+                orderRequest.getTotalAmount()
+        );
+        return ResponseEntity.ok(order);
+    }
+
+    /**
+     * Retrieves all orders in the system.
+     *
+     * @return a list of {@link OrderDto} representing all orders
+     */
+    @GetMapping("/all")
+    public ResponseEntity<List<OrderDto>> getAllOrders() {
+        return ResponseEntity.ok(orderService.getAllOrders());
+    }
+
+    /**
+     * Retrieves all orders placed by a specific user.
+     *
+     * @param userId the ID of the user
+     * @return a list of {@link OrderDto} for that user
+     */
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<OrderDto>> getOrdersByUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(orderService.getOrderByUserId(userId));
+    }
+
+    /**
+     * Updates the status of an order.
+     *
+     * @param orderId the ID of the order
+     * @param status  the new status (e.g., SHIPPED, DELIVERED)
+     * @return the updated {@link OrderDto}
+     */
+    @PutMapping("/{orderId}/status/{status}")
+    public ResponseEntity<OrderDto> updateOrderStatus(@PathVariable Long orderId, @PathVariable String status) {
+        return ResponseEntity.ok(orderService.updateOrderStatus(orderId, status));
+    }
+
+    /**
+     * Cancels an order by ID.
+     *
+     * @param orderId the ID of the order to cancel
+     * @return confirmation message
+     */
+    @PutMapping("/{orderId}/cancel")
+    public ResponseEntity<OrderDto> cancelOrder(@PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.cancelOrder(orderId));
+    }
+
+    /**
+     * Retrieves recent orders placed in the last X days.
+     *
+     * @param days number of days to look back
+     * @return a list of {@link OrderDto} for recent orders
+     */
+    @GetMapping("/recent/{days}")
+    public ResponseEntity<List<OrderDto>> getRecentOrders(@PathVariable int days) {
+        return ResponseEntity.ok(orderService.getRecentOrders(days));
+    }
+
+    /**
+     * Retrieves all orders with a specific status (e.g., PENDING, SHIPPED, DELIVERED).
+     *
+     * @param status the order status
+     * @return a list of orders matching the given status
+     */
+    @GetMapping("/status/{status}")
+    public ResponseEntity<List<Orders>> getOrdersByStatus(@PathVariable Status status) {
+        return ResponseEntity.ok(orderService.findByOrderStatus(status));
+    }
+}

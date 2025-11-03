@@ -1,0 +1,26 @@
+# ============================================================
+# 🌐 Application Configuration
+# ============================================================
+spring.application.name=EUREKA-SERVER
+server.port=8761
+
+# ============================================================
+# 🔐 Eureka Server Configuration
+# ============================================================
+eureka.client.register-with-eureka=false
+eureka.client.fetch-registry=false
+eureka.server.enable-self-preservation=false
+
+# ============================================================
+# 📊 Spring Boot Admin Client Configuration
+# ============================================================
+spring.boot.admin.client.url=http://localhost:1111
+spring.boot.admin.client.instance.service-base-url=http://localhost:${server.port}
+spring.boot.admin.client.instance.management-base-url=http://localhost:${server.port}
+spring.boot.admin.client.instance.name=${spring.application.name}
+
+# ============================================================
+# 🔧 Management Endpoints
+# ============================================================
+management.endpoints.web.exposure.include=health,info,metrics
+management.endpoint.health.show-details=always

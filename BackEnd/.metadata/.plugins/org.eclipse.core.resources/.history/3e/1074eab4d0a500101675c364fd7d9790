@@ -1,0 +1,13 @@
+package com.chandu.DTO;
+
+import lombok.*;
+import java.util.Map;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class OrderRequest {
+    // productId -> quantity
+    private Map<Long, Integer> productQuantities;
+    private Double totalAmount;
+}

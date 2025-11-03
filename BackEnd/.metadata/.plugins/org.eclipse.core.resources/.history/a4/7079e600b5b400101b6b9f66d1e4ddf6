@@ -1,0 +1,41 @@
+spring.application.name=ApiGateway
+server.port=333
+
+# ================= Eureka Config =================
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka/
+eureka.instance.hostname=localhost
+eureka.instance.prefer-ip-address=false
+eureka.client.register-with-eureka=true
+eureka.client.fetch-registry=true
+
+# ================= Discovery Config =================
+spring.cloud.gateway.server.webflux.discovery.locator.enabled=true
+spring.cloud.gateway.server.webflux.discovery.locator.lower-case-service-id=false
+
+# ==========================================================
+# 🧍 USER CONTROLLER ROUTES (inside E_COMMERCE)
+# ==========================================================
+spring.cloud.gateway.server.webflux.routes[0].id=user-service
+spring.cloud.gateway.server.webflux.routes[0].uri=lb://E_COMMERCE
+spring.cloud.gateway.server.webflux.routes[0].predicates[0]=Path=/api/users/**
+
+# ==========================================================
+# 🛒 PRODUCT CONTROLLER ROUTES (inside E_COMMERCE)
+# ==========================================================
+spring.cloud.gateway.server.webflux.routes[1].id=product-service
+spring.cloud.gateway.server.webflux.routes[1].uri=lb://E_COMMERCE
+spring.cloud.gateway.server.webflux.routes[1].predicates[0]=Path=/api/products/**
+
+# ==========================================================
+# 📦 ORDER CONTROLLER ROUTES (inside E_COMMERCE)
+# ==========================================================
+spring.cloud.gateway.server.webflux.routes[2].id=order-service
+spring.cloud.gateway.server.webflux.routes[2].uri=lb://E_COMMERCE
+spring.cloud.gateway.server.webflux.routes[2].predicates[0]=Path=/api/orders/**
+
+# ==========================================================
+# 💳 PAYMENT CONTROLLER ROUTES (inside PaymentService)
+# ==========================================================
+spring.cloud.gateway.server.webflux.routes[3].id=payment-service
+spring.cloud.gateway.server.webflux.routes[3].uri=lb://PaymentService
+spring.cloud.gateway.server.webflux.routes[3].predicates[0]=Path=/api/payments/**

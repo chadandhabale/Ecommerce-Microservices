@@ -1,0 +1,16 @@
+package com.chandu.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.chandu.Entity.Payment;
+import com.chandu.Entity.PaymentStatus;
+
+public interface PaymentRepository extends JpaRepository<Payment, Long>  {
+	Optional<Payment> findByRazorpayOrderId(String razorpayOrderId);
+    Optional<Payment> findByRazorpayPaymentId(String razorpayPaymentId);
+    List<Payment> findByStatus(PaymentStatus status);
+    Optional<Payment> findByOrderId(Long orderId);
+}

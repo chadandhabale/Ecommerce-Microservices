@@ -1,0 +1,81 @@
+package com.chandu.Config;
+
+import com.chandu.Security.JwtAuthenticationFilter;
+import com.chandu.Service.AppUserDetailsService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+@Configuration
+@RequiredArgsConstructor
+public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtFilter;
+    private final AppUserDetailsService userDetailsService;
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable()) // disable CSRF for REST API
+                .authorizeHttpRequests(auth -> auth
+                        // PUBLIC ENDPOINTS - No authentication required
+                        .requestMatchers("/auth/**").permitAll() // Login and register
+                        
+                        // PRODUCT ENDPOINTS
+                        .requestMatchers("/products", "/products/{id}", "/products/search", "/products/category/**").permitAll() // Public browsing
+                        .requestMatchers("/products/**").hasRole("ADMIN") // Only admin can modify products
+                        
+                        // ORDER ENDPOINTS
+                        .requestMatchers("/orders/place/**").hasAnyRole("USER", "ADMIN") // Users can place orders
+                        .requestMatchers("/orders/user/**").hasAnyRole("USER", "ADMIN") // Users can view their orders
+                        .requestMatchers("/orders/**").hasRole("ADMIN") // Only admin for other order operations
+                        
+                        // PAYMENT ENDPOINTS
+                        .requestMatchers("/payments/**").hasAnyRole("USER", "ADMIN") // Users can make payments
+                        
+                        // USER MANAGEMENT ENDPOINTS
+                        .requestMatchers("/users/register").permitAll() // Registration is public (via auth controller)
+                        .requestMatchers("/users/**").hasRole("ADMIN") // Only admin can manage users
+                        
+                        // EMAIL ENDPOINTS
+                        .requestMatchers("/api/email/**").hasRole("ADMIN") // Only admin can test emails
+                        
+                        // Everything else requires authentication
+                        .anyRequest().authenticated()
+                )
+                // Make session stateless since we use JWT
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // Add security headers
+                .headers(headers -> headers
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000) // 1 year
+                        )
+                );
+
+        // Add JWT filter before username-password auth filter
+        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    // ✅ Password encoder bean
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    // ✅ AuthenticationManager bean for login authentication
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+}

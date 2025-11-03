@@ -1,0 +1,28 @@
+package com.chandu.Entity;
+
+import java.util.Map;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * DTO for placing an order request.
+ * It contains product IDs with their quantities and the total amount.
+ */
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class OrderRequest {
+
+    /**
+     * Map of productId -> quantity
+     * Example: { 1: 2, 2: 1 }
+     */
+    private Map<Long, Integer> productQuantities;
+
+    /**
+     * Total order amount before placing the order.
+     */
+    private Double totalAmount;
+}

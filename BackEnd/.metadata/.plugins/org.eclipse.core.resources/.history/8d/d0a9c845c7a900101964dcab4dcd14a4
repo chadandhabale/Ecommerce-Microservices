@@ -1,0 +1,225 @@
+package com.chandu.ServiceImpl;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.modelmapper.ModelMapper;
+import org.springframework.stereotype.Service;
+
+import com.chandu.DTO.OrderDto;
+import com.chandu.DTO.OrderItemDto;
+import com.chandu.Entity.OrderItem;
+import com.chandu.Entity.Orders;
+import com.chandu.Entity.Product;
+import com.chandu.Entity.Status;
+import com.chandu.Entity.User;
+import com.chandu.Repository.OrderRepository;
+import com.chandu.Repository.ProductRepository;
+import com.chandu.Repository.UserRepository;
+import com.chandu.Service.EmailService;
+import com.chandu.Service.OrderService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * Implementation of the {@link OrderService} interface. Handles all business
+ * logic related to placing, fetching, updating, and cancelling orders.
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class OrderServiceImpl implements OrderService {
+
+	private final OrderRepository orderRepository;
+	private final ProductRepository productRepository;
+	private final UserRepository userRepository;
+	private final ModelMapper modelMapper;
+	private final EmailService emailService;
+
+	@Override
+	public OrderDto placeOrder(Long userId, Map<Long, Integer> productQuantities, Double totalAmount) {
+		log.info("Placing a new order for user ID: {}", userId);
+
+		User user = userRepository.findById(userId)
+				.orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+
+		Orders order = new Orders();
+		order.setUser(user);
+		order.setOrderDate(LocalDateTime.now());
+		order.setStatus(Status.PENDING);
+		order.setTotalAmount(totalAmount);
+
+		List<OrderItem> orderItems = new ArrayList<>();
+		List<OrderItemDto> orderItemDtos = new ArrayList<>();
+
+		for (Map.Entry<Long, Integer> entry : productQuantities.entrySet()) {
+			Long productId = entry.getKey();
+			Integer quantity = entry.getValue();
+
+			Product product = productRepository.findById(productId)
+					.orElseThrow(() -> new RuntimeException("Product not found with ID: " + productId));
+
+			OrderItem item = new OrderItem();
+			item.setOrder(order);
+			item.setProduct(product);
+			item.setQuantity(quantity);
+			item.setPrice(product.getPrice());
+			item.setProductName(product.getName());
+			item.setProductImage(product.getImageUrl());
+
+			orderItems.add(item);
+			orderItemDtos.add(new OrderItemDto(product.getId(), product.getName(), product.getPrice(), quantity));
+		}
+
+		order.setOrderItems(orderItems);
+		Orders savedOrder = orderRepository.save(order);
+		log.info("✅ Order placed successfully with ID: {}", savedOrder.getId());
+
+		emailService.sendOrderConfirmationEmail(user.getEmail(), savedOrder);
+
+		return new OrderDto(savedOrder.getId(), savedOrder.getTotalAmount(), savedOrder.getOrderDate(), orderItemDtos);
+	}
+
+	@Override
+	public List<OrderDto> getAllOrders() {
+		log.info("Fetching all orders with associated user details...");
+		List<Orders> orders = orderRepository.findAllOrdersWithUser();
+
+		return orders.stream().map(order -> {
+			OrderDto dto = modelMapper.map(order, OrderDto.class);
+			dto.setUserName(order.getUser().getName());
+			dto.setEmail(order.getUser().getEmail());
+
+			// Fix: Map order items with product IDs
+			if (order.getOrderItems() != null) {
+				List<OrderItemDto> itemDtos = order.getOrderItems().stream().map(item -> {
+					OrderItemDto itemDto = new OrderItemDto();
+					itemDto.setProductId(item.getProduct() != null ? item.getProduct().getId() : null);
+					itemDto.setProductName(item.getProductName());
+					itemDto.setPrice(item.getPrice());
+					itemDto.setQuantity(item.getQuantity());
+					itemDto.setProductImage(item.getProductImage());
+					return itemDto;
+				}).collect(Collectors.toList());
+				dto.setOrderItems(itemDtos);
+			}
+
+			return dto;
+		}).collect(Collectors.toList());
+	}
+
+	@Override
+	public List<OrderDto> getOrderByUserId(Long userId) {
+		log.info("Fetching all orders for user ID: {}", userId);
+
+		User user = userRepository.findById(userId)
+				.orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+
+		List<Orders> userOrders = orderRepository.findByUser(user);
+
+		return userOrders.stream().map(order -> {
+			OrderDto dto = modelMapper.map(order, OrderDto.class);
+			dto.setUserName(user.getName());
+			dto.setEmail(user.getEmail());
+
+			// Fix: Map order items with product IDs
+			if (order.getOrderItems() != null) {
+				List<OrderItemDto> itemDtos = order.getOrderItems().stream().map(item -> {
+					OrderItemDto itemDto = new OrderItemDto();
+					itemDto.setProductId(item.getProduct() != null ? item.getProduct().getId() : null);
+					itemDto.setProductName(item.getProductName());
+					itemDto.setPrice(item.getPrice());
+					itemDto.setQuantity(item.getQuantity());
+					itemDto.setProductImage(item.getProductImage());
+					return itemDto;
+				}).collect(Collectors.toList());
+				dto.setOrderItems(itemDtos);
+			}
+
+			return dto;
+		}).collect(Collectors.toList());
+	}
+
+	@Override
+	public List<Orders> findByOrderStatus(Status status) {
+		log.info("Fetching orders with status: {}", status);
+		List<Orders> orders = orderRepository.findByStatus(status);
+
+		// Force initialization of lazy-loaded collections to avoid proxy issues
+		orders.forEach(order -> {
+			if (order.getUser() != null) {
+				order.getUser().getName(); // Initialize user proxy
+			}
+			if (order.getOrderItems() != null) {
+				order.getOrderItems().size(); // Initialize order items
+			}
+		});
+
+		return orders;
+	}
+
+	@Override
+	public OrderDto updateOrderStatus(Long orderId, String status) {
+		log.info("Updating order {} status to: {}", orderId, status);
+
+		Orders order = orderRepository.findById(orderId)
+				.orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+
+		try {
+			Status newStatus = Status.valueOf(status.toUpperCase());
+			order.setStatus(newStatus);
+			Orders updatedOrder = orderRepository.save(order);
+
+			if (isShippingStatus(newStatus)) {
+				emailService.sendShippingUpdateEmail(order.getUser().getEmail(), order);
+			}
+
+			return modelMapper.map(updatedOrder, OrderDto.class);
+		} catch (IllegalArgumentException e) {
+			throw new RuntimeException("Invalid status: " + status);
+		}
+	}
+
+	private boolean isShippingStatus(Status status) {
+		return status == Status.SHIPPED || status == Status.OUT_FOR_DELIVERY || status == Status.DELIVERED;
+	}
+
+	@Override
+	public List<OrderDto> getRecentOrders(int days) {
+		log.info("Fetching recent orders placed in the last {} days", days);
+
+		LocalDateTime startDate = LocalDateTime.now().minusDays(days);
+		List<Orders> recentOrders = orderRepository.findRecentOrders(startDate); // ✅ Optimized using repository query
+
+		return recentOrders.stream().map(order -> {
+			OrderDto dto = modelMapper.map(order, OrderDto.class);
+			dto.setUserName(order.getUser().getName());
+			dto.setEmail(order.getUser().getEmail());
+			return dto;
+		}).collect(Collectors.toList());
+	}
+
+	@Override
+	public OrderDto cancelOrder(Long orderId) {
+		log.info("Cancelling order with ID: {}", orderId);
+
+		Orders order = orderRepository.findById(orderId)
+				.orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+
+		if (order.getStatus() == Status.DELIVERED || order.getStatus() == Status.CANCELLED) {
+			throw new RuntimeException("Order cannot be cancelled as it is already " + order.getStatus());
+		}
+
+		order.setStatus(Status.CANCELLED);
+		Orders cancelledOrder = orderRepository.save(order);
+
+		emailService.sendShippingUpdateEmail(order.getUser().getEmail(), order);
+		log.info("✅ Order with ID {} cancelled successfully", orderId);
+
+		return modelMapper.map(cancelledOrder, OrderDto.class);
+	}
+}

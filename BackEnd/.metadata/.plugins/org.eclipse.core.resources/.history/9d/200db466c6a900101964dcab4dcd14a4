@@ -1,0 +1,55 @@
+package com.chandu.Repository;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
+import com.chandu.Entity.Orders;
+import com.chandu.Entity.Status;
+import com.chandu.Entity.User;
+
+/**
+ * Repository interface for managing {@link Orders} entities.
+ * Provides methods for fetching orders and their related user details.
+ */
+@Repository
+public interface OrderRepository extends JpaRepository<Orders, Long> {
+
+    /**
+     * Retrieves all orders along with their associated user details.
+     * Uses JOIN FETCH to prevent N+1 select issues when accessing user data.
+     *
+     * @return a list of all orders with user details included
+     */
+    @Query("SELECT o FROM Orders o JOIN FETCH o.user")
+    List<Orders> findAllOrdersWithUser();
+
+    /**
+     * Retrieves all orders placed by a specific user.
+     *
+     * @param user the user whose orders should be fetched
+     * @return a list of orders belonging to the given user
+     */
+    List<Orders> findByUser(User user);
+
+    /**
+     * Retrieves all orders filtered by status.
+     *
+     * @param status the order status to filter by
+     * @return list of orders with the given status
+     */
+    List<Orders> findByStatus(Status status);
+
+    /**
+     * Retrieves all orders placed after the specified date.
+     * Used for fetching recent orders within a certain time frame.
+     *
+     * @param startDate the earliest order date to include
+     * @return list of recent orders
+     */
+    @Query("SELECT o FROM Orders o WHERE o.orderDate >= :startDate")
+    List<Orders> findRecentOrders(LocalDateTime startDate);
+}

@@ -1,0 +1,70 @@
+package com.chandu.ServiceImpl;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.stereotype.Service;
+
+import com.chandu.DTO.OrderDto;
+import com.chandu.DTO.OrderItemDto;
+import com.chandu.Entity.Order;
+import com.chandu.Entity.OrderItems;
+import com.chandu.Entity.Product;
+import com.chandu.Entity.Status;
+import com.chandu.Entity.User;
+import com.chandu.Repository.OrderRepository;
+import com.chandu.Repository.ProductRepository;
+import com.chandu.Repository.UserRepository;
+import com.chandu.Service.OrderService;
+
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+public class OrderServiceImpl implements OrderService {
+
+	private final OrderRepository orderRepository;
+	private final ProductRepository productRepository;
+	private final UserRepository userRepository;
+
+	@Override
+	public OrderDto placeOrder(Long id, Map<Long, Integer> productQuantities, Double totalAmount) {
+		
+		User user = userRepository.findById(id)
+				.orElseThrow(() -> new RuntimeException("User Not Found"));
+		
+		Order order = new Order();
+		order.setUser(user);
+		order.setOrderDate(LocalDateTime.now());
+		order.setStatus(Status.PENDING);
+		order.setTotalAmount(totalAmount);
+		
+		List<OrderItems> OrderItems = new ArrayList();
+		List<OrderItemDto> OrderItemDtos = new ArrayList();
+		
+		for(Map.Entry<Long, Integer> entry : productQuantities.entrySet() ) {
+			
+			Product product = productRepository.findById(entry.getKey()).
+					orElseThrow(() -> new RuntimeException("Product Not Found"));
+			
+			OrderItems orderItems = new OrderItems();
+			orderItems.setOrder(order);
+			orderItems.setProduct(product);
+			orderItems.setQuantity(entry.getValue());
+			OrderItems.add(orderItems);
+			OrderItemDtos.add(new OrderItemDto(product.getName(), product.getPrice(), entry.getValue()));	
+		}
+		
+		order.setOrderItems(OrderItems);
+		Order savedOrder = orderRepository.save(order);
+		 return new OrderDto(
+			        savedOrder.getId(),
+			        savedOrder.getTotalAmount(),
+			        savedOrder.getOrderDate(),
+			        OrderItemDtos);
+			      
+	}
+
+}

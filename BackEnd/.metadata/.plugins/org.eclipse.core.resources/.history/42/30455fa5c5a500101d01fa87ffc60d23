@@ -1,0 +1,52 @@
+package com.chandu.ServiceImpl;
+
+import java.util.List;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import com.chandu.Entity.User;
+import com.chandu.Repository.UserRepository;
+import com.chandu.Service.UserService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class UserServiceImpl implements UserService {
+
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder; // ✅ Add password encoder
+
+    @Override
+    public User registerUser(User user) {
+        log.info("Attempting to register new user: {}", user.getEmail());
+
+        // ✅ Fix: Use Optional properly
+        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+            throw new RuntimeException("Email already registered: " + user.getEmail());
+        }
+
+        User savedUser = userRepository.save(user);
+        log.info("User registered successfully with ID: {}", savedUser.getId());
+        return savedUser;
+    }
+
+    @Override
+    public User loginUser(String email, String password) {
+        log.info("Attempting login for user: {}", email);
+
+        // ✅ Fix: Use Optional properly
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("No user found with email: " + email));
+
+        if (!user.getPassword().equals(password)) {
+            throw new RuntimeException("Invalid credentials for email: " + email);
+        }
+
+        log.info("User login successful: {}", email);
+        return user;
+    }
+}

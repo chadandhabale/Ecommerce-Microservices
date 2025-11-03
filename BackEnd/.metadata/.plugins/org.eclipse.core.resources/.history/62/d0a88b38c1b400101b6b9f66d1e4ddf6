@@ -1,0 +1,32 @@
+package com.example.paymentGateway.DTO;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import com.example.ecoms.Entity.Status;
+
+import lombok.*;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class OrderDTO {
+
+    private Long id;
+    private BigDecimal totalAmount;
+    private LocalDateTime orderDate;
+
+    private String userName;
+    private String email;
+    private Status status;
+
+    private List<OrderItemDTO> orderItems;
+    
+    private String razorpayKeyId;
+
+    // ✅ Add Payment Info
+    private String paymentId;      // Razorpay order ID
+    private String paymentStatus;  // PENDING, SUCCESS, FAILED
+}

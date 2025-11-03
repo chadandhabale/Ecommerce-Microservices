@@ -1,0 +1,113 @@
+package com.chandu.ServiceImpl;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import org.springframework.stereotype.Service;
+
+import com.chandu.Entity.Order;
+import com.chandu.Service.EmailService;
+
+import ch.qos.logback.core.Context;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class EmailServiceImpl implements EmailService {
+
+    private final JavaMailSender mailSender;
+    private final TemplateEngine templateEngine;
+
+    @Override
+    public void sendOrderConfirmationEmail(String toEmail, Order order) {
+        try {
+            Map<String, Object> variables = new HashMap<>();
+            variables.put("order", order);
+            variables.put("user", order.getUser());
+            variables.put("orderItems", order.getOrderItems());
+            variables.put("totalAmount", order.getTotalAmount());
+
+            String subject = "Order Confirmation - Order #" + order.getId();
+            String htmlContent = createEmailContent("order-confirmation", variables);
+            
+            sendEmail(toEmail, subject, htmlContent);
+            log.info("Order confirmation email sent to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send order confirmation email to: {}", toEmail, e);
+        }
+    }
+
+    @Override
+    public void sendPaymentSuccessEmail(String toEmail, Order order) {
+        try {
+            Map<String, Object> variables = new HashMap<>();
+            variables.put("order", order);
+            variables.put("user", order.getUser());
+            variables.put("orderItems", order.getOrderItems());
+            variables.put("totalAmount", order.getTotalAmount());
+
+            String subject = "Payment Successful - Order #" + order.getId();
+            String htmlContent = createEmailContent("payment-success", variables);
+            
+            sendEmail(toEmail, subject, htmlContent);
+            log.info("Payment success email sent to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send payment success email to: {}", toEmail, e);
+        }
+    }
+
+    @Override
+    public void sendShippingUpdateEmail(String toEmail, Order order) {
+        try {
+            Map<String, Object> variables = new HashMap<>();
+            variables.put("order", order);
+            variables.put("user", order.getUser());
+            variables.put("orderStatus", order.getOrderStatus());
+
+            String subject = "Shipping Update - Order #" + order.getId();
+            String htmlContent = createEmailContent("shipping-update", variables);
+            
+            sendEmail(toEmail, subject, htmlContent);
+            log.info("Shipping update email sent to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send shipping update email to: {}", toEmail, e);
+        }
+    }
+
+    @Override
+    public void sendPasswordResetEmail(String toEmail, String resetToken) {
+        try {
+            Map<String, Object> variables = new HashMap<>();
+            variables.put("resetToken", resetToken);
+            variables.put("resetLink", "http://localhost:3000/reset-password?token=" + resetToken);
+
+            String subject = "Password Reset Request";
+            String htmlContent = createEmailContent("password-reset", variables);
+            
+            sendEmail(toEmail, subject, htmlContent);
+            log.info("Password reset email sent to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send password reset email to: {}", toEmail, e);
+        }
+    }
+
+    private String createEmailContent(String templateName, Map<String, Object> variables) {
+        Context context = new Context();
+        variables.forEach(context::setVariable);
+        return templateEngine.process("emails/" + templateName, context);
+    }
+
+    private void sendEmail(String to, String subject, String htmlContent) throws MessagingException {
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+        
+        helper.setTo(to);
+        helper.setSubject(subject);
+        helper.setText(htmlContent, true);
+        helper.setFrom("noreply@ecomms.com");
+        
+        mailSender.send(message);
+    }
+}

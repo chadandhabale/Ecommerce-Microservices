@@ -1,0 +1,15 @@
+package com.example.ecoms.DTO;
+
+import lombok.Data;
+
+@Data
+public class PaymentResponseDTO {
+    private String razorpayOrderId;
+    private double amount;
+    private String currency;
+    private String status;
+    private Long orderId;
+    private Long userId;
+    private String keyId;
+    private String customerEmail;  
+}

@@ -1,0 +1,75 @@
+package com.chandu.Entity;
+
+import java.time.LocalDateTime;
+
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
+@Entity
+@Table(name = "payments")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString(exclude = { "order", "user" }) // avoids circular reference in logs
+public class Payment {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	// Relationship with Orders
+	@OneToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "order_id")
+	@JsonBackReference // prevents recursion with Orders
+	private Orders order;
+
+	// Relationship with User (optional but recommended)
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "user_id")
+	private User user;
+
+	@Column(nullable = false)
+	private Double amount;
+
+	@Column(nullable = false)
+	private String currency = "INR";
+
+	private String paymentMethod;
+
+	@Enumerated(EnumType.STRING)
+	private PaymentStatus status = PaymentStatus.CREATED;
+
+	private String razorpayOrderId;
+	private String razorpayPaymentId;
+	private String razorpaySignature;
+
+	private LocalDateTime paymentDate;
+	private LocalDateTime createdAt;
+
+	@PrePersist
+	protected void onCreate() {
+		createdAt = LocalDateTime.now();
+		if (paymentDate == null) {
+			paymentDate = LocalDateTime.now();
+		}
+	}
+}

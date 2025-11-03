@@ -1,0 +1,48 @@
+package com.example.paymentGateway.ServiceImpl;
+
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.stereotype.Service;
+
+import com.example.paymentGateway.Service.EmailService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class EmailServiceImpl implements EmailService {
+
+    private final JavaMailSender mailSender;
+
+    @Override
+    public void sendEmail(String to, String subject, String body) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(to);
+            message.setSubject(subject);
+            message.setText(body);
+            mailSender.send(message);
+            log.info("✅ Email sent successfully to {}", to);
+        } catch (Exception e) {
+            log.error("❌ Failed to send email: {}", e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void sendHtmlEmail(String to, String subject, String htmlContent) {
+        // For now, fallback to regular email
+        sendEmail(to, subject, htmlContent.replaceAll("<[^>]*>", "").trim());
+    }
+
+    @Override
+    public void sendPaymentSuccessEmail(String to, String customerName, Double amount, Long orderId) {
+        String subject = "Payment Successful - Order #" + orderId;
+        String body = String.format(
+            "Dear %s,\n\nYour payment of ₹%.2f for Order #%d was successful!\n\nThank you for shopping with us.\n\nBest Regards,\nEcomms Team",
+            customerName, amount, orderId
+        );
+        sendEmail(to, subject, body);
+    }
+}

@@ -1,0 +1,46 @@
+package com.chandu.DTO;
+
+import java.time.LocalDateTime;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class PaymentResponse {
+    private String paymentId;
+    private String orderId;
+    private Double amount;
+    @Builder.Default
+    private String currency = "INR";
+    private String status;
+    private String razorpayOrderId;
+    private String razorpayPaymentId;
+    private String razorpaySignature;
+    private LocalDateTime paymentDate;
+    private String message;
+
+    // ✅ Keep only the static helper methods, remove duplicate constructors
+    public static PaymentResponse error(String message, Double amount) {
+        return PaymentResponse.builder()
+                .amount(amount)
+                .status("FAILED")
+                .message(message)
+                .paymentDate(LocalDateTime.now())
+                .build();
+    }
+
+    public static PaymentResponse success(String orderId, Double amount, String message) {
+        return PaymentResponse.builder()
+                .orderId(orderId)
+                .amount(amount)
+                .status("SUCCESS")
+                .message(message)
+                .paymentDate(LocalDateTime.now())
+                .build();
+    }
+}

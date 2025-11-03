@@ -1,0 +1,147 @@
+package com.example.demo.ServiceImpl;
+
+import java.util.Map;
+import java.util.UUID;
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import com.example.demo.Entity.Payment;
+import com.example.demo.Entity.PaymentStatus;
+import com.example.demo.Repository.PaymentRepository;
+import com.example.demo.Service.EmailService;
+import com.example.demo.Service.PaymentService;
+import com.razorpay.Order;
+import com.razorpay.RazorpayClient;
+import com.razorpay.Utils;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class PaymentServiceImpl implements PaymentService {
+
+    private final PaymentRepository paymentRepository;
+    private final EmailService emailService;
+
+    @Value("${razorpay.key.id:}")
+    private String razorpayKeyId;
+
+    @Value("${razorpay.key.secret:}")
+    private String razorpayKeySecret;
+
+    @Value("${payment.mock:true}")
+    private boolean paymentMock;
+
+    @Override
+    public Payment createPaymentOrder(Map<String, Object> data) {
+        try {
+            log.info("🪙 Creating payment order (mock={}) with data: {}", paymentMock, data);
+
+            if (data.get("amount") == null)
+                throw new IllegalArgumentException("Missing 'amount' in request data");
+
+            double amountDouble = ((Number) data.get("amount")).doubleValue();
+
+            // ✅ Mock mode for local testing
+            if (paymentMock) {
+                String fakeOrderId = "order_test_" + UUID.randomUUID().toString().replace("-", "").substring(0, 14);
+
+                Payment payment = Payment.builder()
+                        .razorpayOrderId(fakeOrderId)
+                        .amount(amountDouble)
+                        .currency("INR")
+                        .status(PaymentStatus.PENDING)
+                        .userId(data.get("userId") != null ? ((Number) data.get("userId")).longValue() : null)
+                        .orderId(data.get("orderId") != null ? ((Number) data.get("orderId")).longValue() : null)
+                        .build();
+
+                return paymentRepository.save(payment);
+            }
+
+            // ✅ Real Razorpay Integration
+            int amountPaise = (int) Math.round(amountDouble * 100);
+            RazorpayClient client = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
+
+            JSONObject orderRequest = new JSONObject();
+            orderRequest.put("amount", amountPaise);
+            orderRequest.put("currency", "INR");
+            orderRequest.put("receipt", "txn_" + System.currentTimeMillis());
+            orderRequest.put("payment_capture", 1);
+
+            Order order = client.orders.create(orderRequest);
+
+            Payment payment = Payment.builder()
+                    .razorpayOrderId(order.get("id"))
+                    .amount(amountDouble)
+                    .currency("INR")
+                    .status(PaymentStatus.PENDING)
+                    .userId(data.get("userId") != null ? ((Number) data.get("userId")).longValue() : null)
+                    .orderId(data.get("orderId") != null ? ((Number) data.get("orderId")).longValue() : null)
+                    .build();
+
+            return paymentRepository.save(payment);
+
+        } catch (Exception e) {
+            log.error("❌ Payment creation failed: {}", e.getMessage(), e);
+            throw new RuntimeException("Payment creation failed", e);
+        }
+    }
+
+    @Override
+    public boolean verifyPaymentSignature(Map<String, String> paymentDetails) {
+        try {
+            String orderId = paymentDetails.get("razorpay_order_id");
+            String paymentId = paymentDetails.get("razorpay_payment_id");
+            String signature = paymentDetails.get("razorpay_signature");
+
+            if (paymentMock) {
+                return orderId != null && signature != null;
+            }
+
+            JSONObject attributes = new JSONObject();
+            attributes.put("razorpay_order_id", orderId);
+            attributes.put("razorpay_payment_id", paymentId);
+            attributes.put("razorpay_signature", signature);
+
+            return Utils.verifyPaymentSignature(attributes, razorpayKeySecret);
+
+        } catch (Exception e) {
+            log.error("❌ Signature verification failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
+    public Payment updatePaymentStatus(String razorpayOrderId, String status, String email) {
+        Payment payment = paymentRepository.findByRazorpayOrderId(razorpayOrderId);
+        if (payment == null) throw new RuntimeException("Payment not found: " + razorpayOrderId);
+
+        payment.setStatus(PaymentStatus.valueOf(status.toUpperCase()));
+        Payment updated = paymentRepository.save(payment);
+
+        // ✅ Send Email if Payment Successful
+        if (updated.getStatus() == PaymentStatus.SUCCESS) {
+            if (email == null || email.isBlank()) {
+                log.warn("⚠️ Email address not provided — skipping email notification for order {}", updated.getOrderId());
+            } else {
+                String subject = "Payment Successful - Order #" + updated.getOrderId();
+                String body = String.format(
+                        "Dear Customer,\n\nYour payment of ₹%.2f for Order #%d was successful!\n\nThank you for shopping with us.\n\nBest Regards,\nEcomms Team",
+                        updated.getAmount(), updated.getOrderId()
+                );
+                emailService.sendEmail(email, subject, body);
+                log.info("📩 Payment confirmation email sent to {}", email);
+            }
+        }
+
+        return updated;
+    }
+
+    @Override
+    public Payment getPaymentByOrderId(String razorpayOrderId) {
+        return paymentRepository.findByRazorpayOrderId(razorpayOrderId);
+    }
+}

@@ -1,0 +1,195 @@
+package com.example.demo.ServiceImpl;
+
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import org.modelmapper.ModelMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.example.demo.Client.PaymentClient;
+import com.example.demo.DTO.*;
+import com.example.demo.Entity.*;
+import com.example.demo.Repository.*;
+import com.example.demo.Service.OrderService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class OrderServiceImpl implements OrderService {
+
+    private final OrderRepository orderRepository;
+    private final ProductRepository productRepository;
+    private final UserRepository userRepository;
+    private final ModelMapper modelMapper;
+    private final PaymentClient paymentClient; // ✅ Feign client for PaymentService
+
+    @Override
+    public OrderDTO placeOrder(Long userId, Map<Long, Integer> productQuantities, Double totalAmount) {
+        log.info("🛒 Placing order for user ID: {}", userId);
+
+        // Step 1️⃣: Validate user
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+
+        // Step 2️⃣: Create order entity
+        Orders order = new Orders();
+        order.setUser(user);
+        order.setOrderDate(LocalDateTime.now());
+        order.setStatus(Status.PENDING);
+        order.setTotalAmount(new java.math.BigDecimal(totalAmount));
+
+        // Step 3️⃣: Add order items
+        List<OrderItem> orderItems = new ArrayList<>();
+        for (Map.Entry<Long, Integer> entry : productQuantities.entrySet()) {
+            Long productId = entry.getKey();
+            Integer quantity = entry.getValue();
+
+            Product product = productRepository.findById(productId)
+                    .orElseThrow(() -> new RuntimeException("Product not found with ID: " + productId));
+
+            OrderItem item = new OrderItem();
+            item.setOrder(order);
+            item.setProduct(product);
+            item.setQuantity(quantity);
+            item.setPrice(product.getPrice());
+            orderItems.add(item);
+        }
+
+        order.setOrderItems(orderItems);
+
+        // Step 4️⃣: Save order in DB
+        Orders savedOrder = orderRepository.save(order);
+        log.info("✅ Order placed successfully with ID: {}", savedOrder.getId());
+
+        // Step 5️⃣: Create payment in PaymentService
+        PaymentResponse paymentResponse = null;
+        try {
+            PaymentRequest paymentRequest = new PaymentRequest(userId, savedOrder.getId(), totalAmount);
+            paymentResponse = paymentClient.createPayment(paymentRequest);
+            log.info("💳 Payment created for Order ID {}: {}", savedOrder.getId(), paymentResponse);
+
+            // ✅ Automatically mark payment as SUCCESS and trigger email
+            if ("PENDING".equalsIgnoreCase(paymentResponse.getStatus())) {
+                paymentResponse = paymentClient.updatePaymentStatus(
+                        paymentResponse.getRazorpayOrderId(),
+                        "SUCCESS",
+                        user.getEmail() // dynamically use the user’s real email
+                );
+                log.info("📩 Payment success email sent to {}", user.getEmail());
+            }
+
+        } catch (Exception e) {
+            log.error("❌ Payment service failed for Order ID {}: {}", savedOrder.getId(), e.getMessage());
+
+            // 🚨 Mark order as cancelled if payment fails
+            savedOrder.setStatus(Status.CANCELLED);
+            orderRepository.save(savedOrder);
+            throw new RuntimeException("Payment Service unavailable. Order cancelled temporarily.");
+        }
+
+        // Step 6️⃣: Build and return response DTO
+        OrderDTO orderDTO = modelMapper.map(savedOrder, OrderDTO.class);
+        orderDTO.setUserName(user.getName());
+        orderDTO.setEmail(user.getEmail());
+        orderDTO.setOrderItems(orderItems.stream()
+                .map(item -> new OrderItemDTO(
+                        item.getProduct().getId(),
+                        item.getProduct().getName(),
+                        item.getPrice(),
+                        item.getQuantity()))
+                .collect(Collectors.toList()));
+
+        if (paymentResponse != null) {
+            orderDTO.setPaymentId(paymentResponse.getRazorpayOrderId());
+            orderDTO.setPaymentStatus(paymentResponse.getStatus());
+        }
+
+        return orderDTO;
+    }
+
+    @Override
+    public List<OrderDTO> getAllOrders() {
+        log.info("📦 Fetching all orders...");
+        return orderRepository.findAllOrdersWithUser().stream()
+                .map(order -> modelMapper.map(order, OrderDTO.class))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<OrderDTO> getOrdersByUserId(Long userId) {
+        log.info("📦 Fetching orders for user ID: {}", userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+
+        return orderRepository.findByUser(user).stream()
+                .map(order -> modelMapper.map(order, OrderDTO.class))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Orders> findByOrderStatus(Status status) {
+        log.info("🔍 Fetching orders by status: {}", status);
+        return orderRepository.findByStatus(status);
+    }
+
+    @Override
+    public OrderDTO updateOrderStatus(Long orderId, String status) {
+        log.info("📝 Updating order {} to status {}", orderId, status);
+        Orders order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+
+        try {
+            order.setStatus(Status.valueOf(status.toUpperCase()));
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Invalid order status: " + status);
+        }
+
+        Orders updatedOrder = orderRepository.save(order);
+        return modelMapper.map(updatedOrder, OrderDTO.class);
+    }
+
+    @Override
+    public OrderDTO cancelOrder(Long orderId) {
+        log.info("🚫 Cancelling order with ID: {}", orderId);
+        Orders order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+
+        if (order.getStatus() == Status.DELIVERED || order.getStatus() == Status.CANCELLED) {
+            throw new RuntimeException("Order cannot be cancelled (status: " + order.getStatus() + ")");
+        }
+
+        order.setStatus(Status.CANCELLED);
+        Orders cancelledOrder = orderRepository.save(order);
+        return modelMapper.map(cancelledOrder, OrderDTO.class);
+    }
+
+    @Override
+    public List<OrderDTO> getRecentOrders(int days) {
+        log.info("📅 Fetching recent orders placed in the last {} days", days);
+        LocalDateTime startDate = LocalDateTime.now().minusDays(days);
+        List<Orders> recentOrders = orderRepository.findRecentOrders(startDate);
+
+        return recentOrders.stream().map(order -> {
+            OrderDTO dto = modelMapper.map(order, OrderDTO.class);
+            dto.setUserName(order.getUser().getName());
+            dto.setEmail(order.getUser().getEmail());
+
+            if (order.getOrderItems() != null) {
+                dto.setOrderItems(order.getOrderItems().stream()
+                        .map(item -> new OrderItemDTO(
+                                item.getProduct().getId(),
+                                item.getProduct().getName(),
+                                item.getPrice(),
+                                item.getQuantity()))
+                        .collect(Collectors.toList()));
+            }
+            return dto;
+        }).collect(Collectors.toList());
+    }
+}

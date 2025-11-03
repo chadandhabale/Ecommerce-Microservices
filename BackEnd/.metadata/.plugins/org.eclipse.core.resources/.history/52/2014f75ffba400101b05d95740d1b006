@@ -1,0 +1,41 @@
+package com.chandu.Service;
+
+import java.util.List;
+
+import com.chandu.Entity.Product;
+
+/**
+ * Service interface for managing products in the system.
+ */
+public interface ProductService {
+
+    /**
+     * Retrieves all products from the database.
+     *
+     * @return a list of all available products
+     */
+    List<Product> getAllProducts();
+
+    /**
+     * Retrieves a specific product by its ID.
+     *
+     * @param productId the ID of the product to fetch
+     * @return the product entity if found
+     */
+    Product getProductById(Long productId);
+
+    /**
+     * Adds a new product to the system.
+     *
+     * @param product the product details to be added
+     * @return the newly created product
+     */
+    Product addProduct(Product product);
+
+    /**
+     * Deletes a product from the system by its ID.
+     *
+     * @param productId the ID of the product to delete
+     */
+    void deleteProduct(Long productId);
+}

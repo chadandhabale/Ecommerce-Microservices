@@ -1,0 +1,74 @@
+package com.chandu.Controller;
+
+import java.util.List;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.chandu.Entity.Product;
+import com.chandu.Service.ProductService;
+
+import lombok.RequiredArgsConstructor;
+
+/**
+ * REST controller for managing products. Provides CRUD endpoints and search
+ * capabilities.
+ */
+@RestController
+@RequestMapping("/products")
+@CrossOrigin("*")
+@RequiredArgsConstructor
+public class ProductController {
+
+	private final ProductService productService;
+
+	/** Retrieves all available products */
+	@GetMapping
+	public ResponseEntity<List<Product>> getAllProducts() {
+		return ResponseEntity.ok(productService.getAllProducts());
+	}
+
+	/** Retrieves a product by its ID */
+	@GetMapping("/{id}")
+	public ResponseEntity<Product> getProductById(@PathVariable Long id) {
+		Product product = productService.findProductById(id);
+		return ResponseEntity.ok(product);
+	}
+
+	/** Adds a new product to the database */
+	@PostMapping
+	public ResponseEntity<Product> addProduct(@RequestBody Product product) {
+		Product savedProduct = productService.addProduct(product);
+		return new ResponseEntity<>(savedProduct, HttpStatus.CREATED);
+	}
+
+	/** Deletes a product by its ID */
+	@DeleteMapping("/{id}")
+	public ResponseEntity<String> deleteProduct(@PathVariable Long id) {
+		productService.deleteProduct(id);
+		return ResponseEntity.ok("Product with ID " + id + " deleted successfully.");
+	}
+
+	/** Retrieves all products belonging to a specific category */
+	@GetMapping("/category/{category}")
+	public ResponseEntity<List<Product>> getProductsByCategory(@PathVariable String category) {
+		List<Product> products = productService.getProductsByCategory(category);
+		return ResponseEntity.ok(products);
+	}
+
+	/** Searches products by name keyword (case-insensitive) */
+	@GetMapping("/search")
+	public ResponseEntity<List<Product>> searchProducts(@RequestParam String keyword) {
+		List<Product> products = productService.searchProducts(keyword);
+		return ResponseEntity.ok(products);
+	}
+}

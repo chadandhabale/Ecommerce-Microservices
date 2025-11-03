@@ -1,0 +1,61 @@
+package com.chandu.Controller;
+
+import java.util.List;
+
+import org.springframework.web.bind.annotation.*;
+
+import com.chandu.DTO.OrderDto;
+import com.chandu.Entity.OrderRequest;
+import com.chandu.Service.OrderService;
+
+import lombok.RequiredArgsConstructor;
+
+/**
+ * REST controller for managing orders.
+ * Provides endpoints for placing, viewing, and retrieving user-specific orders.
+ */
+@RestController
+@RequestMapping("/orders")
+@CrossOrigin("*")
+@RequiredArgsConstructor
+public class OrderController {
+
+    private final OrderService orderService;
+
+    /**
+     * Places a new order for the specified user.
+     *
+     * @param userId        the ID of the user placing the order
+     * @param orderRequest  contains product quantities and total amount
+     * @return an {@link OrderDto} representing the placed order
+     */
+    @PostMapping("/place/{userId}")
+    public OrderDto placeOrder(@PathVariable Long userId, @RequestBody OrderRequest orderRequest) {
+        return orderService.placeOrder(
+                userId,
+                orderRequest.getProductQuantities(),
+                orderRequest.getTotalAmount()
+        );
+    }
+
+    /**
+     * Retrieves all orders in the system.
+     *
+     * @return a list of {@link OrderDto} representing all orders
+     */
+    @GetMapping("/all")
+    public List<OrderDto> getAllOrders() {
+        return orderService.getAllOrders();
+    }
+
+    /**
+     * Retrieves all orders placed by a specific user.
+     *
+     * @param userId the ID of the user whose orders are being fetched
+     * @return a list of {@link OrderDto} belonging to the specified user
+     */
+    @GetMapping("/user/{userId}")
+    public List<OrderDto> getOrdersByUser(@PathVariable Long userId) {
+        return orderService.getOrderByUserId(userId);
+    }
+}

@@ -1,0 +1,10 @@
+package com.example.paymentGateway.DTO;
+
+import lombok.Data;
+
+@Data
+public class CreateOrderRequest {
+	private Double amount;
+	private String currency = "INR";
+	private String customerEmail;
+}

@@ -1,0 +1,173 @@
+package com.chandu.ServiceImpl;
+
+import java.time.LocalDateTime;
+
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import com.chandu.DTO.PaymentRequest;
+import com.chandu.DTO.PaymentResponse;
+import com.chandu.DTO.PaymentVerificationRequest;
+import com.chandu.Entity.Order;
+import com.chandu.Entity.Payment;
+import com.chandu.Entity.PaymentStatus;
+import com.chandu.Entity.Status; // ✅ Order Status
+import com.chandu.Repository.OrderRepository;
+import com.chandu.Repository.PaymentRepository;
+import com.chandu.Service.EmailService;
+import com.chandu.Service.PaymentService;
+import com.razorpay.RazorpayClient;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class PaymentServiceImpl implements PaymentService {
+
+    private final RazorpayClient razorpayClient;
+    private final PaymentRepository paymentRepository;
+    private final OrderRepository orderRepository;
+    private final EmailService emailService;
+
+    @Value("${razorpay.key.id}")
+    private String razorpayKeyId;
+
+    @Override
+    public PaymentResponse createPaymentOrder(PaymentRequest paymentRequest) {
+        try {
+            log.info("Creating payment order for order ID: {}", paymentRequest.getOrderId());
+            
+            // Validate order
+            Order order = orderRepository.findById(paymentRequest.getOrderId())
+                    .orElseThrow(() -> new RuntimeException("Order not found with ID: " + paymentRequest.getOrderId()));
+
+            // Create Razorpay order
+            JSONObject razorpayOrder = createRazorpayOrder(
+                paymentRequest.getAmount(),
+                paymentRequest.getCurrency(),
+                paymentRequest.getReceipt()
+            );
+
+            // Save payment record
+            Payment payment = new Payment();
+            payment.setOrder(order);
+            payment.setAmount(paymentRequest.getAmount());
+            payment.setCurrency(paymentRequest.getCurrency());
+            payment.setPaymentMethod(paymentRequest.getPaymentMethod());
+            payment.setRazorpayOrderId(razorpayOrder.getString("id"));
+            payment.setStatus(PaymentStatus.CREATED); // ✅ Using PaymentStatus
+            payment.setPaymentDate(LocalDateTime.now());
+
+            Payment savedPayment = paymentRepository.save(payment);
+
+            // Prepare response
+            PaymentResponse response = new PaymentResponse();
+            response.setPaymentId(savedPayment.getId().toString());
+            response.setOrderId(order.getId().toString());
+            response.setAmount(paymentRequest.getAmount());
+            response.setCurrency(paymentRequest.getCurrency());
+            response.setRazorpayOrderId(razorpayOrder.getString("id"));
+            response.setStatus(PaymentStatus.CREATED.name()); // ✅ Using PaymentStatus
+            response.setMessage("Payment order created successfully");
+
+            log.info("Payment order created with Razorpay ID: {}", razorpayOrder.getString("id"));
+            return response;
+
+        } catch (Exception e) {
+            log.error("Error creating payment order: {}", e.getMessage());
+            throw new RuntimeException("Failed to create payment order: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public JSONObject createRazorpayOrder(Double amount, String currency, String receipt) throws Exception {
+        JSONObject orderRequest = new JSONObject();
+        orderRequest.put("amount", amount * 100); // Razorpay expects amount in paise
+        orderRequest.put("currency", currency);
+        orderRequest.put("receipt", receipt);
+        orderRequest.put("payment_capture", 1); // Auto capture
+
+        // Create Razorpay order and convert to JSONObject
+        com.razorpay.Order razorpayOrder = razorpayClient.orders.create(orderRequest);
+        return new JSONObject(razorpayOrder.toString());
+    }
+
+    @Override
+    public PaymentResponse verifyPayment(PaymentVerificationRequest verificationRequest) {
+        try {
+            log.info("Verifying payment for Razorpay order ID: {}", verificationRequest.getRazorpayOrderId());
+            
+            Payment payment = paymentRepository.findByRazorpayOrderId(verificationRequest.getRazorpayOrderId())
+                    .orElseThrow(() -> new RuntimeException("Payment not found"));
+
+            // For demo, we'll assume payment is successful
+            boolean isPaymentSuccessful = true;
+
+            if (isPaymentSuccessful) {
+                payment.setStatus(PaymentStatus.SUCCESS); // ✅ Using PaymentStatus
+                payment.setRazorpayPaymentId(verificationRequest.getRazorpayPaymentId());
+                payment.setRazorpaySignature(verificationRequest.getRazorpaySignature());
+                payment.setPaymentDate(LocalDateTime.now());
+
+                // Update order status
+                Order order = payment.getOrder();
+                order.setStatus(Status.CONFIRMED); // ✅ Using Status (Order Status)
+                orderRepository.save(order);
+
+                paymentRepository.save(payment);
+
+                // Send confirmation email
+                emailService.sendOrderConfirmationEmail(order.getUser().getEmail(), order);
+
+                log.info("Payment verified successfully for order ID: {}", order.getId());
+
+                PaymentResponse response = new PaymentResponse();
+                response.setPaymentId(payment.getId().toString());
+                response.setOrderId(order.getId().toString());
+                response.setAmount(payment.getAmount());
+                response.setStatus(PaymentStatus.SUCCESS.name()); // ✅ Using PaymentStatus
+                response.setMessage("Payment verified successfully");
+                return response;
+            } else {
+                payment.setStatus(PaymentStatus.FAILED); // ✅ Using PaymentStatus
+                paymentRepository.save(payment);
+                throw new RuntimeException("Payment verification failed");
+            }
+
+        } catch (Exception e) {
+            log.error("Error verifying payment: {}", e.getMessage());
+            throw new RuntimeException("Payment verification failed: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public PaymentResponse getPaymentStatus(String paymentId) {
+        Payment payment = paymentRepository.findById(Long.parseLong(paymentId))
+                .orElseThrow(() -> new RuntimeException("Payment not found"));
+
+        PaymentResponse response = new PaymentResponse();
+        response.setPaymentId(payment.getId().toString());
+        response.setOrderId(payment.getOrder().getId().toString());
+        response.setAmount(payment.getAmount());
+        response.setStatus(payment.getStatus().name()); // ✅ Using PaymentStatus
+        response.setPaymentDate(payment.getPaymentDate());
+        response.setMessage("Payment status retrieved");
+
+        return response;
+    }
+
+    @Override
+    public boolean refundPayment(String paymentId, Double amount) {
+        try {
+            log.info("Processing refund for payment ID: {}", paymentId);
+            // Implement Razorpay refund logic here
+            return true;
+        } catch (Exception e) {
+            log.error("Error processing refund: {}", e.getMessage());
+            return false;
+        }
+    }
+}

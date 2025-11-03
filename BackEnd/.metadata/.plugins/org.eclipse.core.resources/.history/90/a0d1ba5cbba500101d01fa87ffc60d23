@@ -1,0 +1,41 @@
+package com.chandu.Entity;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * Represents a product available in the e-commerce system.
+ */
+@Entity
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Table(name = "products")
+public class Product {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long productId;
+
+    // ✅ Product name (cannot be null)
+    @Column(nullable = false)
+    private String name;
+
+    // ✅ Product description (mapped to DB column with typo fix)
+    @Column(name = "discription", length = 1000)
+    private String description;
+
+    // ✅ Product image URL
+    @Column(name = "image_url")
+    private String imageUrl;
+
+    // ✅ Product price (cannot be null)
+    @Column(nullable = false)
+    private Double price;
+
+    // ✅ Product category (e.g., Clothing, Electronics, etc.)
+    @Column(nullable = false)
+    private String category;
+}

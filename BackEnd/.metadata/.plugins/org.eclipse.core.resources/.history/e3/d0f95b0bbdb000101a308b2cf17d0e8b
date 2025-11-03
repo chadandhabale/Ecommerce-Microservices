@@ -1,0 +1,54 @@
+package com.chandu.Service;
+
+import com.chandu.Entity.Orders;
+
+/**
+ * Service interface for sending various transactional and notification emails
+ * related to user activities and order events.
+ *
+ * Implementations of this interface (e.g. using JavaMailSender) handle the
+ * actual email construction and delivery.
+ */
+public interface EmailService {
+
+	/**
+	 * Sends an order confirmation email after an order is successfully placed.
+	 *
+	 * @param toEmail recipient email address
+	 * @param order   order details
+	 */
+	void sendOrderConfirmationEmail(String toEmail, Orders order);
+
+	/**
+	 * Sends a payment success email after successful payment confirmation.
+	 *
+	 * @param toEmail recipient email address
+	 * @param order   order details
+	 */
+	void sendPaymentSuccessEmail(String toEmail, Orders order);
+
+	/**
+	 * Sends an update email when the shipping status of an order changes.
+	 *
+	 * @param toEmail recipient email address
+	 * @param order   order details
+	 */
+	void sendShippingUpdateEmail(String toEmail, Orders order);
+
+	/**
+	 * Sends a password reset email containing a reset token or link.
+	 *
+	 * @param toEmail    recipient email address
+	 * @param resetToken unique password reset token
+	 */
+	void sendPasswordResetEmail(String toEmail, String resetToken);
+
+	/**
+	 * Sends a generic email with a custom subject and message body.
+	 *
+	 * @param toEmail recipient email address
+	 * @param subject subject of the email
+	 * @param content body of the email
+	 */
+	void sendGenericEmail(String toEmail, String subject, String content);
+}

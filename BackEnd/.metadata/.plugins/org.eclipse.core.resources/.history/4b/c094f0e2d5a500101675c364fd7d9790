@@ -1,0 +1,60 @@
+package com.chandu.DTO;
+
+import java.time.LocalDateTime;
+import lombok.*;
+
+/**
+ * DTO for sending payment information back to the frontend
+ * after payment creation or verification.
+ * 
+ * Example JSON:
+ * {
+ *   "paymentId": "pay_29QQoUBi66xm2f",
+ *   "orderId": "order_DBJOWzybf0sJbb",
+ *   "amount": 1499.0,
+ *   "currency": "INR",
+ *   "status": "SUCCESS",
+ *   "razorpayOrderId": "order_DBJOWzybf0sJbb",
+ *   "razorpayPaymentId": "pay_29QQoUBi66xm2f",
+ *   "razorpaySignature": "af63d01f9b65c7e2...",
+ *   "paymentDate": "2025-10-10T10:30:00",
+ *   "message": "Payment verified and order confirmed successfully."
+ * }
+ */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
+public class PaymentResponse {
+
+    /** Internal payment ID (from your database) */
+    private String paymentId;
+
+    /** Order ID (from your Orders table or frontend checkout) */
+    private String orderId;
+
+    /** Amount paid by the user */
+    private Double amount;
+
+    /** Currency used for the payment */
+    private String currency = "INR";
+
+    /** Payment status (CREATED, SUCCESS, FAILED) */
+    private String status;
+
+    /** Razorpay’s generated Order ID */
+    private String razorpayOrderId;
+
+    /** Razorpay’s generated Payment ID */
+    private String razorpayPaymentId;
+
+    /** Razorpay’s signature used for verification */
+    private String razorpaySignature;
+
+    /** Timestamp when payment was completed */
+    private LocalDateTime paymentDate;
+
+    /** Additional message or confirmation note */
+    private String message;
+}

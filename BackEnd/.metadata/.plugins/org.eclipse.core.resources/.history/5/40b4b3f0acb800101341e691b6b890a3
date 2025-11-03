@@ -1,0 +1,13 @@
+package com.example.paymentGateway.DTO;
+
+import lombok.Data;
+
+@Data
+public class PaymentConfirmationRequest {
+	   private String razorpayOrderId;
+	    private String razorpayPaymentId;
+	    private String razorpaySignature;
+	    private String customerEmail;
+	    private Long orderId;
+	   
+}

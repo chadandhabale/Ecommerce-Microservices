@@ -1,0 +1,60 @@
+package com.chandu.Service;
+
+import org.json.JSONObject;
+
+import com.chandu.DTO.PaymentRequest;
+import com.chandu.DTO.PaymentResponse;
+import com.chandu.DTO.PaymentVerificationRequest;
+
+/**
+ * Service interface defining payment-related operations. Handles Razorpay order
+ * creation, payment verification, refunds, and status tracking.
+ */
+public interface PaymentService {
+
+	/**
+	 * Creates a new Razorpay order and saves the corresponding payment details in
+	 * the database.
+	 *
+	 * @param paymentRequest the payment details received from frontend
+	 * @return PaymentResponse containing order info and Razorpay IDs
+	 */
+	PaymentResponse createPaymentOrder(PaymentRequest paymentRequest);
+
+	/**
+	 * Verifies the Razorpay payment signature to ensure authenticity.
+	 *
+	 * @param verificationRequest Razorpay order, payment, and signature details
+	 * @return PaymentResponse with verification result and payment status
+	 */
+	PaymentResponse verifyPayment(PaymentVerificationRequest verificationRequest);
+
+	/**
+	 * Fetches the current payment status for the given internal or Razorpay payment
+	 * ID.
+	 *
+	 * @param paymentId internal or Razorpay payment ID
+	 * @return PaymentResponse containing current payment status
+	 */
+	PaymentResponse getPaymentStatus(String paymentId);
+
+	/**
+	 * Initiates a refund through Razorpay for a specified amount.
+	 *
+	 * @param paymentId Razorpay payment ID to refund
+	 * @param amount    amount to refund
+	 * @return true if refund was initiated successfully, false otherwise
+	 */
+	boolean refundPayment(String paymentId, Double amount);
+
+	/**
+	 * Creates a new Razorpay order object (used internally by createPaymentOrder).
+	 *
+	 * @param amount   total amount to be paid (in rupees)
+	 * @param currency currency code (e.g., "INR")
+	 * @param receipt  unique receipt identifier
+	 * @return JSONObject containing Razorpay order details
+	 * @throws Exception if order creation fails
+	 */
+	JSONObject createRazorpayOrder(Double amount, String currency, String receipt) throws Exception;
+}

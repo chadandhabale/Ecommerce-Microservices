@@ -1,0 +1,30 @@
+package com.chandu.DTO;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class OrderItemDto {
+
+    private Long productId;
+    private String productName;
+    private Double price;
+    private int quantity;
+
+    // ✅ Add constructor that includes productId
+    public OrderItemDto(Long productId, String productName, Double price, int quantity) {
+        this.productId = productId;
+        this.productName = productName;
+        this.price = price;
+        this.quantity = quantity;
+    }
+    
+    // ✅ Keep existing constructor for backward compatibility
+    public OrderItemDto(String productName, Double price, int quantity) {
+        this.productName = productName;
+        this.price = price;
+        this.quantity = quantity;
+    }

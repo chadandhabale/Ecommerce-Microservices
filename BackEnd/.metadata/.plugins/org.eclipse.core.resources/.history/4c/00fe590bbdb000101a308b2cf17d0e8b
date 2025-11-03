@@ -1,0 +1,38 @@
+package com.chandu.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import com.chandu.Entity.Payment;
+import com.chandu.Entity.PaymentStatus;
+
+/**
+ * Repository interface for managing Payment entities. Provides methods for
+ * retrieving payment records using various identifiers.
+ */
+@Repository
+public interface PaymentRepository extends JpaRepository<Payment, Long> {
+
+
+    Optional<Payment> findByRazorpayOrderId(String razorpayOrderId);
+
+    Optional<Payment> findByRazorpayPaymentId(String razorpayPaymentId);
+
+    List<Payment> findByStatus(PaymentStatus status);
+
+    Optional<Payment> findByOrder_Id(Long orderId);
+
+    // New method to find payments by user ID
+    @Query("SELECT p FROM Payment p WHERE p.user.id = :userId ORDER BY p.paymentDate DESC")
+    List<Payment> findByUserId(@Param("userId") Long userId);
+
+    // New method to find recent payments
+    @Query("SELECT p FROM Payment p ORDER BY p.paymentDate DESC LIMIT :limit")
+    List<Payment> findRecentPayments(@Param("limit") int limit);
+    
+}
